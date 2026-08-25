@@ -616,12 +616,17 @@ def stability_generate_image(prompt: str) -> bytes:
         raise FactoryError("STABILITY_API_KEY غير مضبوط في متغيرات البيئة", 500)
     boundary = uuid.uuid4().hex
     full_prompt = (
-        "professional medical educational illustration for a licensed optics training platform, "
-        "clean flat vector style, simple geometric shapes, no text, no watermark, no photorealistic faces, "
-        "calm teal and navy color palette, minimalist infographic style, human eye anatomy education diagram"
+        "professional medical scientific illustration, " + prompt +
+        ", clean flat vector art style, simple bold shapes, soft teal and navy blue color palette, "
+        "minimalist, high quality medical textbook illustration"
+    )
+    negative_prompt = (
+        "text, letters, numbers, words, writing, typography, labels, captions, watermark, logo, "
+        "signature, blurry, distorted, photorealistic face, low quality, ugly, gibberish"
     )
     fields = {
         "prompt": full_prompt,
+        "negative_prompt": negative_prompt,
         "output_format": "png",
         "aspect_ratio": "16:9",
     }
@@ -724,11 +729,12 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
         on_screen = str(raw.get("on_screen_text") or raw.get("on screen text") or "")
         visual = str(raw.get("visual_direction") or raw.get("visual direction") or "")
         source_codes = raw.get("source_codes") or raw.get("source codes") or ""
+        visual_en = raw.get("visual_prompt_en") or "human eye anatomy cross section diagram"
         scene = {
             "type": "content",
             "title": f"مشهد {scene_no}",
             "on_screen": on_screen,
-            "visual_brief": visual,
+            "visual_brief": visual_en,
             "source_ids": [source_codes] if source_codes else [],
         }
         frame_path = out_dir / f"S{int(scene_no):02d}.png"

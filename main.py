@@ -738,7 +738,10 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
             "source_ids": [source_codes] if source_codes else [],
         }
         frame_path = out_dir / f"S{int(scene_no):02d}.png"
-        if raw.get("image_base64"):
+        if raw.get("image_url"):
+            with urllib.request.urlopen(raw["image_url"], timeout=60) as resp:
+                frame_path.write_bytes(resp.read())
+        elif raw.get("image_base64"):
             import base64 as b64lib
             frame_path.write_bytes(b64lib.b64decode(raw["image_base64"]))
         else:

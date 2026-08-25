@@ -738,10 +738,20 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
             "source_ids": [source_codes] if source_codes else [],
         }
         frame_path = out_dir / f"S{int(scene_no):02d}.png"
-        render_frame_ai(scene, frame_path, i, total)
-        audio_bytes = heygen_tts(narration)
+        if raw.get("image_base64"):
+            import base64 as b64lib
+            frame_path.write_bytes(b64lib.b64decode(raw["image_base64"]))
+        else:
+            render_frame_ai(scene, frame_path, i, total)
         audio_path = out_dir / f"S{int(scene_no):02d}.mp3"
-        audio_path.write_bytes(audio_bytes)
+        if raw.get("audio_url"):
+            with urllib.request.urlopen(raw["audio_url"], timeout=60) as resp:
+                audio_path.write_bytes(resp.read())
+        elif raw.get("audio_base64"):
+            import base64 as b64lib
+            audio_path.write_bytes(b64lib.b64decode(raw["audio_base64"]))
+        else:
+            audio_path.write_bytes(heygen_tts(narration))
         clip_path = out_dir / f"S{int(scene_no):02d}.mp4"
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",

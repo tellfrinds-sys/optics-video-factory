@@ -1,0 +1,12 @@
+{
+  "name": "تنبيه الأعطال - بوابة البصريات",
+  "id": "w7U696uYR4PkVYlb",
+  "nodes": [
+    {"id":"f5394232-3bfb-4b12-ae91-5afb5cfaabfd","name":"عند حدوث خطأ","type":"n8n-nodes-base.errorTrigger","typeVersion":1,"position":[0,0],"parameters":{}},
+    {"id":"0641c450-be39-4d37-aff2-5286a3656da0","name":"تنبيه تليجرام فوري","type":"n8n-nodes-base.telegram","typeVersion":1.2,"position":[224,0],"parameters":{"resource":"message","operation":"sendMessage","chatId":"684277004","text":"=تنبيه عطل تلقائي\nWorkflow: {{$json.workflow.name}}\nالعقدة المتعطلة: {{$json.execution.lastNodeExecuted}}\nالخطأ: {{$json.execution.error && $json.execution.error.message}}\nرابط التنفيذ: https://optics-gate-academy.app.n8n.cloud/workflow/{{$json.workflow.id}}/executions/{{$json.execution.id}}","additionalFields":{"appendAttribution":false,"parse_mode":"={{ '' }}"}}}
+  ],
+  "connections": {
+    "عند حدوث خطأ":{"main":[[{"node":"تنبيه تليجرام فوري","type":"main","index":0}]]}
+  },
+  "settings": {"executionOrder":"v1"}
+}

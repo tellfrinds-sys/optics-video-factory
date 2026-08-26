@@ -11,10 +11,12 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 import uuid
@@ -36,7 +38,9 @@ DB_PATH = DATA_DIR / "factory.sqlite3"
 INDEX_PATH = ROOT / "index.html"
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = os.environ.get("MODEL_NAME", "qwen2.5:7b-instruct")
-MAX_BODY = 512 * 1024
+# كان محدودًا بـ512KB بلا توضيح؛ هذا هو سبب رسائل 413 السابقة. رُفع الحد الآن
+# لأن السيناريوهات التشريحية لم تعد تُرسل صورًا مضمّنة (تُرسم على السيرفر)، وما تبقى صغير.
+MAX_BODY = 2 * 1024 * 1024
 
 
 def now() -> str:
@@ -683,6 +687,314 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int]:
     return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
 
 
+# =============================================================================
+# مخطط تشريح العين ثنائي اللغة مع إبراز متزامن مع الكلام (يعتمد على word_timestamps
+# التي يرجعها HeyGen). أُضيف هذا القسم لحل ثلاث مشاكل أبلغ عنها المستخدم:
+#   1) التسميات كانت إنجليزية فقط على صورة خارجية (Wikimedia) -> الآن نرسم
+#      المخطط بأنفسنا بتسميات عربي+إنجليزي.
+#   2) لا يوجد أي إبراز بصري متزامن مع الجزء المذكور -> الآن نبني "تايم لاين"
+#      لكل مشهد ونبدّل بين نسخ مختلفة من نفس المخطط (كل نسخة تُبرز جزءًا مختلفًا).
+#   3) صورة Wikimedia كانت تحتاج تنزيلًا خارجيًا هشًا (403) وتُثقل حجم الطلب ->
+#      الآن نرسمها محليًا فلا حاجة لأي صورة خارجية للمشاهد التشريحية إطلاقًا.
+# =============================================================================
+
+AMIRI_BOLD_PATH = "/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Bold.ttf"
+AMIRI_REGULAR_PATH = "/usr/share/fonts/opentype/fonts-hosny-amiri/Amiri-Regular.ttf"
+
+EYE_DIAGRAM_BG = "#EAF6F6"
+EYE_DIAGRAM_CARD = "#FFFFFF"
+EYE_DIAGRAM_NAVY = "#123B5E"
+EYE_DIAGRAM_CHARCOAL = "#33414D"
+EYE_DIAGRAM_HIGHLIGHT = "#FF7A45"
+
+EYE_PARTS = {
+    "sclera": {"ar": "الصلبة", "en": "Sclera"},
+    "choroid": {"ar": "المشيمية", "en": "Choroid"},
+    "retina": {"ar": "الشبكية", "en": "Retina"},
+    "cornea": {"ar": "القرنية", "en": "Cornea"},
+    "lens": {"ar": "العدسة", "en": "Lens"},
+    "iris": {"ar": "القزحية", "en": "Iris"},
+    "pupil": {"ar": "الحدقة", "en": "Pupil"},
+    "optic_nerve": {"ar": "العصب البصري", "en": "Optic Nerve"},
+}
+
+# كل مصطلح وصيغه العربية المحتملة (بلا "ال" وبدونها) للمطابقة مع كلمات word_timestamps.
+ANATOMY_TERMS = [
+    {"key": "sclera", "variants": [["الصلبة"], ["صلبة"]]},
+    {"key": "cornea", "variants": [["القرنية"], ["قرنية"]]},
+    {"key": "choroid", "variants": [["المشيمية"], ["مشيمية"]]},
+    {"key": "retina", "variants": [["الشبكية"], ["شبكية"]]},
+    {"key": "lens", "variants": [["العدسة"], ["عدسة"]]},
+    {"key": "iris", "variants": [["القزحية"], ["قزحية"]]},
+    {"key": "pupil", "variants": [["الحدقة"], ["حدقة"], ["البؤبؤ"], ["بؤبؤ"]]},
+    {"key": "optic_nerve", "variants": [["العصب", "البصري"], ["عصب", "بصري"]]},
+]
+
+_ARABIC_DIACRITICS_RE = re.compile(r"[ؐ-ًؚ-ٰٟۖ-ۜ۟-۪ۨ-ۭـ]")
+
+
+def _normalize_ar(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text or "")
+    text = _ARABIC_DIACRITICS_RE.sub("", text)
+    for alef in "أإآٱ":
+        text = text.replace(alef, "ا")
+    text = text.replace("ى", "ي")
+    text = re.sub(r"[^\w\s]", "", text, flags=re.UNICODE)
+    return text.strip()
+
+
+def _arabic_font(size: int, bold: bool = False):
+    try:
+        from PIL import ImageFont
+    except ImportError as exc:
+        raise FactoryError("Pillow غير مثبت؛ شغّل: pip install Pillow", 501) from exc
+    path = AMIRI_BOLD_PATH if bold else AMIRI_REGULAR_PATH
+    if not Path(path).is_file():
+        raise FactoryError(
+            "خط Amiri العربي غير مثبت على السيرفر. شغّل: apt-get install -y fonts-hosny-amiri "
+            "(بدونه ستظهر التسميات العربية على المخطط كمربعات فارغة)",
+            501,
+        )
+    return ImageFont.truetype(path, size)
+
+
+def _draw_rtl_simple(draw, x: int, y: int, text: str, font, fill, anchor: str = "ra") -> None:
+    draw.text((x, y), text, font=font, fill=fill, anchor=anchor, direction="rtl", language="ar")
+
+
+def _wrap_rtl(draw, text: str, font, max_width: int) -> list[str]:
+    words = str(text).split()
+    lines, current = [], ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        width = draw.textbbox((0, 0), candidate, font=font, direction="rtl")[2]
+        if current and width > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def compute_highlight_timeline(
+    word_timestamps: list[dict[str, Any]] | None,
+    scene_duration: float,
+    min_hold: float = 1.4,
+) -> list[dict[str, Any]]:
+    """يبني قائمة مقاطع {term, start, end} لمشهد واحد: أي جزء تشريحي يُبرز ومتى،
+    بمطابقة كلمات النص التشريحي المعروفة مع توقيتات HeyGen الفعلية.
+    عند غياب التوقيتات (أو عدم العثور على أي مصطلح معروف) تُرجع مقطعًا واحدًا
+    بلا إبراز (term=None) يغطي كامل مدة المشهد -> سلوك آمن يرجع للصورة الأساسية.
+    """
+    if not word_timestamps:
+        return [{"term": None, "start": 0.0, "end": scene_duration}]
+    tokens = []
+    for w in word_timestamps:
+        word = w.get("word") or w.get("text") or ""
+        start = float(w.get("start", 0.0))
+        end = float(w.get("end", start))
+        tokens.append({"norm": _normalize_ar(word), "start": start, "end": end})
+    hits = []
+    n = len(tokens)
+    for term in ANATOMY_TERMS:
+        for variant in term["variants"]:
+            span = len(variant)
+            i = 0
+            while i <= n - span:
+                if all(part in tokens[i + j]["norm"] for j, part in enumerate(variant)):
+                    hits.append({"term": term["key"], "start": tokens[i]["start"], "end": tokens[i + span - 1]["end"]})
+                    i += span
+                else:
+                    i += 1
+    if not hits:
+        return [{"term": None, "start": 0.0, "end": scene_duration}]
+    # إزالة التكرار: صيغ المصطلح الواحد قد تتطابق كلها مع نفس الكلمة (مثال:
+    # "صلبة" جزء من "الصلبة")، فينتج أكثر من hit لنفس الموضع.
+    hits = list({(h["term"], h["start"], h["end"]): h for h in hits}.values())
+    hits.sort(key=lambda h: h["start"])
+    timeline: list[dict[str, Any]] = []
+    cursor = 0.0
+    for hit in hits:
+        start = max(hit["start"], cursor)
+        if start >= scene_duration:
+            continue
+        end = min(max(hit["end"], start + min_hold), scene_duration)
+        if start > cursor:
+            timeline.append({"term": None, "start": cursor, "end": start})
+        timeline.append({"term": hit["term"], "start": start, "end": end})
+        cursor = end
+    if cursor < scene_duration:
+        timeline.append({"term": None, "start": cursor, "end": scene_duration})
+    return [seg for seg in timeline if seg["end"] > seg["start"]]
+
+
+def draw_eye_diagram(highlight_key: str | None, on_screen_text: str = "", scene_label: str = "") -> "Any":
+    """يرسم مخططًا تشريحيًا مبسّطًا للعين بتسميات عربي+إنجليزي، مع إبراز جزء واحد
+    اختياريًا (لون مختلف + إطار حول تسميته + تعتيم بقية الأجزاء) لمزامنته مع الصوت.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError as exc:
+        raise FactoryError("Pillow غير مثبت؛ شغّل: pip install Pillow", 501) from exc
+
+    width, height = 1920, 1080
+    img = Image.new("RGB", (width, height), EYE_DIAGRAM_BG)
+    draw = ImageDraw.Draw(img, "RGBA")
+    draw.rounded_rectangle((1180, 90, 1850, 990), radius=40, fill=EYE_DIAGRAM_CARD)
+    draw.rounded_rectangle((70, 90, 1110, 990), radius=40, fill=EYE_DIAGRAM_CARD)
+
+    cx, cy = 540, 520
+    r0, r1, r2, r3 = 300, 274, 252, 230
+
+    def alpha_of(key: str | None) -> int:
+        if not highlight_key:
+            return 255
+        return 255 if key == highlight_key else 85
+
+    for key, radius, rgb in [
+        ("sclera", r0, (255, 255, 255)),
+        ("choroid", r1, (123, 58, 63)),
+        ("retina", r2, (200, 90, 90)),
+        (None, r3, (214, 236, 236)),
+    ]:
+        a = alpha_of(key) if key else 255
+        draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=(*rgb, a))
+
+    a = alpha_of("optic_nerve")
+    draw.polygon(
+        [(cx - r0 - 10, cy - 50), (cx - r0 - 120, cy - 36), (cx - r0 - 120, cy + 36), (cx - r0 - 10, cy + 50)],
+        fill=(150, 150, 160, a),
+    )
+
+    a = alpha_of("lens")
+    lens_cx = cx + r2 - 35
+    draw.ellipse((lens_cx - 50, cy - 85, lens_cx + 50, cy + 85), fill=(255, 244, 200, a), outline=(200, 170, 90, 255), width=4)
+
+    a = alpha_of("iris")
+    ix0, ix1 = cx + r2 + 5, cx + r2 + 50
+    draw.rectangle((ix0, cy - 120, ix1, cy - 20), fill=(90, 60, 40, a))
+    draw.rectangle((ix0, cy + 20, ix1, cy + 120), fill=(90, 60, 40, a))
+
+    a = alpha_of("pupil")
+    draw.rectangle((ix0, cy - 20, ix1, cy + 20), fill=(15, 15, 20, a))
+
+    a = alpha_of("cornea")
+    bbox = (cx + r2 - 20, cy - 175, cx + r2 + 210, cy + 175)
+    draw.arc(bbox, start=-55, end=55, fill=(30, 138, 138, a), width=10)
+
+    f_ar_active = _arabic_font(28, bold=True)
+    f_ar = _arabic_font(24)
+    f_en = _font(18, bold=True)
+
+    def label(key: str, lx: int, ly: int, leader_from: tuple[int, int] | None = None) -> None:
+        active = key == highlight_key
+        fill_ar = EYE_DIAGRAM_HIGHLIGHT if active else EYE_DIAGRAM_NAVY
+        fill_en = EYE_DIAGRAM_HIGHLIGHT if active else EYE_DIAGRAM_CHARCOAL
+        f1 = f_ar_active if active else f_ar
+        _draw_rtl_simple(draw, lx, ly, EYE_PARTS[key]["ar"], f1, fill_ar, anchor="ma")
+        draw.text((lx, ly + 32), EYE_PARTS[key]["en"], font=f_en, fill=fill_en, anchor="ma")
+        if leader_from:
+            draw.line([leader_from, (lx, ly + 15)], fill=(EYE_DIAGRAM_HIGHLIGHT if active else (150, 150, 150)), width=2)
+        if active:
+            box = draw.textbbox((lx, ly), EYE_PARTS[key]["ar"], font=f1, anchor="ma", direction="rtl", language="ar")
+            pad = 10
+            draw.rounded_rectangle((box[0] - pad, box[1] - pad, box[2] + pad, ly + 32 + 22), radius=10, outline=EYE_DIAGRAM_HIGHLIGHT, width=3)
+
+    label("sclera", cx, cy - r0 - 20)
+    label("choroid", cx - 130, cy - r1 - 25, leader_from=(cx - 90, cy - r1 + 10))
+    label("retina", cx - 220, cy - r2 + 20, leader_from=(cx - 170, cy - r2 + 55))
+    label("optic_nerve", cx - r0 - 75, cy - 100)
+    label("lens", lens_cx, cy + 145)
+    label("iris", cx + r2 + 175, cy - 90, leader_from=(ix1, cy - 70))
+    label("pupil", cx + r2 + 175, cy + 10, leader_from=(ix1, cy))
+    label("cornea", cx + r2 + 235, cy - 220, leader_from=(cx + r2 + 150, cy - 165))
+
+    _draw_rtl_simple(draw, 1815, 50, "منصة بوابة البصريات | OpticsGate", _arabic_font(28, bold=True), EYE_DIAGRAM_NAVY)
+
+    if highlight_key:
+        _draw_rtl_simple(draw, 1810, 150, "الجزء الظاهر الآن:", _arabic_font(28), EYE_DIAGRAM_CHARCOAL)
+        _draw_rtl_simple(draw, 1810, 200, EYE_PARTS[highlight_key]["ar"], _arabic_font(58, bold=True), EYE_DIAGRAM_HIGHLIGHT)
+        draw.text((1810, 275), EYE_PARTS[highlight_key]["en"], font=_font(32, bold=True), fill=EYE_DIAGRAM_NAVY, anchor="ra")
+    else:
+        _draw_rtl_simple(draw, 1810, 190, scene_label or "تشريح العين البشرية", _arabic_font(46, bold=True), EYE_DIAGRAM_NAVY)
+
+    if on_screen_text:
+        draw.line([(1810, 360), (1215, 360)], fill=(220, 220, 220), width=2)
+        f_caption = _arabic_font(30)
+        y = 400
+        for line in _wrap_rtl(draw, on_screen_text, f_caption, 600):
+            draw.text((1810, y), line, font=f_caption, fill=EYE_DIAGRAM_CHARCOAL, anchor="ra", direction="rtl", language="ar")
+            y += f_caption.size + 14
+
+    return img
+
+
+def render_highlighted_scene_clip(
+    scene_no: int,
+    narration: str,
+    on_screen_text: str,
+    word_timestamps: list[dict[str, Any]] | None,
+    audio_path: Path,
+    out_dir: Path,
+    render_cfg: dict[str, Any],
+) -> Path:
+    """يبني كليب المشهد التشريحي الواحد: يرسم نسخ المخطط اللازمة فقط (مرة واحدة لكل
+    جزء يظهر فعليًا)، يبني منها فيديو صامت بتوقيتات دقيقة عبر ffmpeg concat، ثم يدمج
+    الصوت الأصلي للمشهد فوقه بدون إعادة ترميزه (copy) طالما الفيديو الصامت أطول أو
+    يساوي الصوت (-shortest يقصّ الزائد فقط)."""
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(audio_path)],
+        capture_output=True, text=True, timeout=20,
+    )
+    try:
+        audio_duration = float(probe.stdout.strip())
+    except (ValueError, AttributeError):
+        audio_duration = 0.0
+    scene_duration = max(audio_duration, 1.0)
+
+    timeline = compute_highlight_timeline(word_timestamps, scene_duration)
+    frame_cache: dict[str | None, Path] = {}
+    concat_lines = []
+    for seg in timeline:
+        key = seg["term"]
+        if key not in frame_cache:
+            frame_path = out_dir / f"S{scene_no:02d}_{key or 'base'}.png"
+            draw_eye_diagram(key, on_screen_text=on_screen_text if key is None else "", scene_label="").save(frame_path)
+            frame_cache[key] = frame_path
+        duration = seg["end"] - seg["start"]
+        escaped = str(frame_cache[key].resolve()).replace("'", "'\\''")
+        concat_lines.append(f"file '{escaped}'")
+        concat_lines.append(f"duration {duration:.3f}")
+    last_escaped = str(frame_cache[timeline[-1]["term"]].resolve()).replace("'", "'\\''")
+    concat_lines.append(f"file '{last_escaped}'")
+    concat_path = out_dir / f"S{scene_no:02d}_concat.txt"
+    concat_path.write_text("\n".join(concat_lines) + "\n", encoding="utf-8")
+
+    silent_path = out_dir / f"S{scene_no:02d}_silent.mp4"
+    fps = render_cfg.get("fps", 30)
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
+        "-i", str(concat_path), "-vf", f"fps={fps},format=yuv420p",
+        "-c:v", "libx264", "-preset", "veryfast", str(silent_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if result.returncode != 0 or not silent_path.exists():
+        raise FactoryError(f"فشل بناء تايم لاين المشهد {scene_no}: {result.stderr[-500:]}", 500)
+
+    clip_path = out_dir / f"S{scene_no:02d}.mp4"
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(silent_path), "-i", str(audio_path),
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=7",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", str(clip_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if result.returncode != 0 or not clip_path.exists():
+        raise FactoryError(f"فشل دمج صوت المشهد {scene_no}: {result.stderr[-500:]}", 500)
+    return clip_path
+
 
 def heygen_tts(text: str, voice_id: str | None = None) -> bytes:
     if not HEYGEN_API_KEY:
@@ -737,15 +1049,6 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
             "visual_brief": visual_en,
             "source_ids": [source_codes] if source_codes else [],
         }
-        frame_path = out_dir / f"S{int(scene_no):02d}.png"
-        if raw.get("image_url"):
-            with urllib.request.urlopen(raw["image_url"], timeout=60) as resp:
-                frame_path.write_bytes(resp.read())
-        elif raw.get("image_base64"):
-            import base64 as b64lib
-            frame_path.write_bytes(b64lib.b64decode(raw["image_base64"]))
-        else:
-            render_frame_ai(scene, frame_path, i, total)
         audio_path = out_dir / f"S{int(scene_no):02d}.mp3"
         if raw.get("audio_url"):
             with urllib.request.urlopen(raw["audio_url"], timeout=60) as resp:
@@ -755,6 +1058,31 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
             audio_path.write_bytes(b64lib.b64decode(raw["audio_base64"]))
         else:
             audio_path.write_bytes(heygen_tts(narration))
+
+        if raw.get("use_custom_diagram"):
+            # مشهد تشريحي: نرسم المخطط بأنفسنا ونبني تايم لاين إبراز متزامن مع
+            # الكلام باستخدام word_timestamps بدلًا من صورة ثابتة واحدة.
+            clip_path = render_highlighted_scene_clip(
+                scene_no=int(scene_no),
+                narration=narration,
+                on_screen_text=on_screen,
+                word_timestamps=raw.get("word_timestamps"),
+                audio_path=audio_path,
+                out_dir=out_dir,
+                render_cfg=config()["factory"]["render"],
+            )
+            clip_paths.append(clip_path)
+            continue
+
+        frame_path = out_dir / f"S{int(scene_no):02d}.png"
+        if raw.get("image_url"):
+            with urllib.request.urlopen(raw["image_url"], timeout=60) as resp:
+                frame_path.write_bytes(resp.read())
+        elif raw.get("image_base64"):
+            import base64 as b64lib
+            frame_path.write_bytes(b64lib.b64decode(raw["image_base64"]))
+        else:
+            render_frame_ai(scene, frame_path, i, total)
         clip_path = out_dir / f"S{int(scene_no):02d}.mp4"
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",

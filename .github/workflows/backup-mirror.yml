@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Push mirror to backup repo (branch: video-factory)
+      - name Push mirror to backup repo (branch: video-factory)
         env:
           SSH_KEY: ${{ secrets.BACKUP_SSH_KEY }}
         run: |

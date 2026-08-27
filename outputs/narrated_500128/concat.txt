@@ -1,0 +1,7 @@
+file '/root/video-factory/outputs/narrated_500128/S01.mp4'
+file '/root/video-factory/outputs/narrated_500128/S02.mp4'
+file '/root/video-factory/outputs/narrated_500128/S03.mp4'
+file '/root/video-factory/outputs/narrated_500128/S04.mp4'
+file '/root/video-factory/outputs/narrated_500128/S05.mp4'
+file '/root/video-factory/outputs/narrated_500128/S06.mp4'
+file '/root/video-factory/outputs/narrated_500128/S07.mp4'

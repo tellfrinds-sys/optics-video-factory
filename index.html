@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>مصنع فيديوهات منصة بوابة البصريات</title>
+  <style>
+    :root{--navy:#162235;--navy2:#232e3e;--teal:#467374;--sky:#d4e6e7;--taupe:#8f7d6c;--ivory:#f6f3ee;--white:#fff;--ink:#2e2b28;--line:#d7dfdf;--ok:#29735a;--wait:#a36a16;--danger:#7a3e3e;--shadow:0 18px 48px rgba(22,34,53,.10)}
+    *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#f5f2ed,#eef5f5 62%,#dae8e9);color:var(--ink);font-family:"Segoe UI",Tahoma,Arial,sans-serif}button,select{font:inherit}button{cursor:pointer}
+    .shell{width:min(1420px,100%);margin:auto;min-height:100vh;padding:22px}.top{background:linear-gradient(115deg,var(--navy),var(--navy2) 55%,var(--teal));color:#fff;border-radius:25px;padding:26px 30px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+    .eyebrow{font-size:12px;letter-spacing:.12em;color:var(--sky)}h1{margin:5px 0 6px;font-size:clamp(25px,4vw,42px)}.lead{margin:0;color:#dbe7e8;line-height:1.7}.health{display:flex;gap:10px;align-items:center;background:#ffffff12;border:1px solid #ffffff29;padding:10px 14px;border-radius:99px;font-size:13px}.dot{width:10px;height:10px;border-radius:50%;background:#e3a84c;box-shadow:0 0 0 5px #e3a84c22}.dot.ok{background:#58c69b;box-shadow:0 0 0 5px #58c69b22}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}.kpi,.panel{background:#ffffffdd;border:1px solid #ffffff;border-radius:20px;box-shadow:var(--shadow)}.kpi{padding:17px 19px}.kpi b{display:block;font-size:27px;color:var(--navy)}.kpi span{font-size:13px;color:#6b7778}
+    .grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr);gap:18px}.panel{padding:20px}.panel h2{font-size:18px;margin:0 0 6px;color:var(--navy)}.muted{color:#6d7878;font-size:13px;line-height:1.65}.pipeline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:17px 0}.step{padding:12px 8px;border-radius:13px;text-align:center;background:#eef1f1;color:#687274;border:1px solid #e1e5e5;font-size:12px}.step.active{background:var(--sky);color:var(--navy);border-color:#aec8ca;font-weight:700}.step.done{background:#e3f2eb;color:var(--ok);border-color:#badacb}.step b{display:block;font-size:17px;margin-bottom:3px}
+    .toolbar{display:grid;grid-template-columns:1fr auto auto;gap:10px;margin:14px 0}.toolbar select{min-width:0;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fff}.btn{border:0;border-radius:12px;padding:11px 15px;background:var(--navy);color:#fff;font-weight:700}.btn.alt{background:var(--teal)}.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}.btn.approve{background:var(--ok)}.btn.warn{background:var(--danger)}.btn:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+    .job{border:1px solid var(--line);background:var(--ivory);padding:14px;border-radius:15px;margin-top:13px}.jobline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.tag{font-size:11px;border-radius:99px;padding:6px 10px;background:var(--sky);color:var(--navy)}.stage{font-size:12px;font-weight:700;color:var(--wait)}
+    .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;min-height:125px}.card h3{margin:0 0 8px;font-size:14px;color:var(--teal)}.card p,.card li{font-size:13px;line-height:1.75}.card ul{margin:0;padding-right:18px}.empty{color:#879091;text-align:center;padding:28px 10px}
+    video{width:100%;margin-top:14px;border-radius:16px;background:#101820;box-shadow:0 8px 24px #16223525}.gate{border-right:4px solid var(--wait);padding:11px 13px;background:#fff7e8;border-radius:10px;font-size:13px;line-height:1.7;margin-top:12px}.gate.ok{border-color:var(--ok);background:#edf8f2}.gate.danger{border-color:var(--danger);background:#fbefed}
+    .refs{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:14px}.ref{position:relative;overflow:hidden;border-radius:13px;aspect-ratio:16/9;background:#ddd}.ref:first-child{grid-column:1/-1}.ref img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.82)}.ref span{position:absolute;inset:auto 7px 7px 7px;background:#162235d9;color:#fff;border-radius:8px;padding:6px 8px;font-size:10px;text-align:center}.swatches{display:flex;gap:7px;margin:14px 0}.swatches i{height:23px;flex:1;border-radius:7px;border:1px solid #00000012}.rules{margin:10px 0 0;padding-right:20px}.rules li{font-size:13px;line-height:1.9}.notice{margin-top:18px;padding:14px 16px;border:1px solid #d8c9c2;background:#fffaf7;border-radius:13px;color:#654b42;font-size:12px;line-height:1.7}.toast{position:fixed;left:22px;bottom:22px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);max-width:420px;display:none;z-index:10}.toast.show{display:block}.toast.error{background:var(--danger)}
+    @media(max-width:940px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.pipeline{grid-template-columns:repeat(3,1fr)}}@media(max-width:600px){.shell{padding:10px}.top{border-radius:17px;padding:20px}.kpis{gap:8px}.kpi{padding:13px}.toolbar{grid-template-columns:1fr}.pipeline{grid-template-columns:repeat(2,1fr)}.content-grid{grid-template-columns:1fr}.refs{grid-template-columns:1fr}.ref:first-child{grid-column:auto}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header class="top">
+    <div><div class="eyebrow">OPTICSGATE · PRIVATE VIDEO FACTORY</div><h1>مصنع فيديوهات بوابة البصريات</h1><p class="lead">من الدرس إلى فيديو تعليمي مُراجع — بهويتك، من غير أفاتار متحرك.</p></div>
+    <div class="health"><span id="dot" class="dot"></span><span id="healthText">جارٍ فحص المصنع…</span></div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi"><b id="lessonsPlanned">355</b><span>درس/فيديو في المخطط</span></div>
+    <div class="kpi"><b id="lessonsLoaded">—</b><span>دروس محمّلة الآن</span></div>
+    <div class="kpi"><b id="jobsCount">—</b><span>مهام إنتاج</span></div>
+    <div class="kpi"><b id="waitingCount">—</b><span>تنتظر اعتمادك</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <h2>خط الإنتاج المحكوم</h2>
+      <div class="muted">كل مرحلة تحفظ أثرًا مستقلًا. لا ينتقل المحتوى العلمي ولا الفيديو النهائي من غير قرار اعتماد صريح.</div>
+      <div class="pipeline" id="pipeline">
+        <div class="step" data-stage="DRAFT"><b>١</b>الدرس</div><div class="step" data-stage="AWAITING_SCRIPT_SCIENTIFIC"><b>٢</b>السكريبت</div><div class="step" data-stage="SCRIPT_APPROVED"><b>٣</b>اعتماد علمي</div><div class="step" data-stage="SCENES_READY"><b>٤</b>المشاهد</div><div class="step" data-stage="AWAITING_FINAL_VIDEO"><b>٥</b>المعاينة</div><div class="step" data-stage="FINAL_APPROVED"><b>٦</b>اعتماد نهائي</div>
+      </div>
+
+      <div class="toolbar">
+        <select id="lessonSelect" aria-label="اختر درسًا"></select>
+        <button id="newJob" class="btn" type="button">مهمة جديدة</button>
+        <button id="demo" class="btn alt" type="button">تشغيل المثال الكامل</button>
+      </div>
+
+      <div id="jobBox" class="job"><div class="empty">أنشئ مهمة أو شغّل المثال الجاهز لتجربة المصنع.</div></div>
+      <div class="actions">
+        <button id="generateScript" class="btn" disabled>توليد السكريبت بـ Ollama</button>
+        <button id="approveScript" class="btn approve" disabled>اعتماد السكريبت علميًا</button>
+        <button id="generateScenes" class="btn alt" disabled>بناء المشاهد</button>
+        <button id="render" class="btn alt" disabled>إنتاج معاينة MP4</button>
+        <button id="approveFinal" class="btn approve" disabled>اعتماد الفيديو نهائيًا</button>
+      </div>
+      <div id="gateInfo" class="gate">ابدأ بدرس؛ المصنع لا ينشر أي شيء تلقائيًا.</div>
+      <video id="preview" controls playsinline hidden></video>
+      <div id="content" class="content-grid"></div>
+    </div>
+
+    <aside class="panel">
+      <h2>الهوية البصرية المعتمدة</h2>
+      <div class="muted">استُخلصت من صورك: حضور هادئ، تكوين أمامي، كحلي وفحمي، زجاج سماوي، وعاجي دافئ.</div>
+      <div class="swatches"><i style="background:#162235"></i><i style="background:#232e3e"></i><i style="background:#467374"></i><i style="background:#d4e6e7"></i><i style="background:#8f7d6c"></i><i style="background:#f6f3ee"></i></div>
+      <div class="refs">
+        <div class="ref"><img src="/assets/visual_references/presenter_navy_neutral.png" alt="مرجع ببدلة كحلية"><span>كحلي · خلفية هادئة</span></div>
+        <div class="ref"><img src="/assets/visual_references/presenter_gray_library.png" alt="مرجع في مكتبة"><span>مكتبة علمية دافئة</span></div>
+        <div class="ref"><img src="/assets/visual_references/presenter_navy_city.png" alt="مرجع مكتبي"><span>مكتب وزجاج سماوي</span></div>
+        <div class="ref"><img src="/assets/visual_references/presenter_gray_city.png" alt="مرجع فحمي"><span>فحمي · زجاج</span></div>
+        <div class="ref"><img src="/assets/visual_references/presenter_white_columns.png" alt="مرجع عاجي"><span>أبيض وعاجي دافئ</span></div>
+      </div>
+      <div class="gate danger"><b>مرجع بصري فقط:</b> لا تحريك للوجه، ولا استنساخ أفاتار. الفيديو النهائي يعتمد رسومًا، مخططات، شرائح علمية وصوتك.</div>
+      <ul class="rules"><li>لهجة مصرية بسيطة وهادئة.</li><li>فكرة ← تفسير ← توصية.</li><li>لا موسيقى؛ مؤثرات وظيفية خفيفة فقط.</li><li>المصادر أسفل الفيديو.</li><li>إخلاء مسؤولية طبي واضح.</li></ul>
+      <div class="notice">الاعتماد النهائي يرفع حظر الجاهزية فقط. النشر على المنصة يظل يدويًا وغير منفذ من هذه اللوحة.</div>
+    </aside>
+  </section>
+</main>
+<div id="toast" class="toast"></div>
+<script>
+const $=id=>document.getElementById(id);let activeJob=null,lessons=[];
+const stages=['DRAFT','AWAITING_SCRIPT_SCIENTIFIC','SCRIPT_APPROVED','SCENES_READY','AWAITING_FINAL_VIDEO','FINAL_APPROVED'];
+const labels={DRAFT:'مسودة درس',AWAITING_SCRIPT_SCIENTIFIC:'ينتظر اعتماد السكريبت',SCRIPT_APPROVED:'السكريبت معتمد',SCENES_READY:'المشاهد جاهزة',AWAITING_FINAL_VIDEO:'ينتظر اعتماد الفيديو',FINAL_APPROVED:'الفيديو معتمد',CHANGES_REQUESTED:'مطلوب تعديل'};
+function toast(msg,error=false){const t=$('toast');t.textContent=msg;t.className='toast show'+(error?' error':'');setTimeout(()=>t.className='toast',3500)}
+async function api(path,options={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...options});const data=await r.json();if(!r.ok)throw new Error(data.error||'تعذر تنفيذ الطلب');return data}
+function setBusy(value){document.querySelectorAll('button').forEach(b=>b.disabled=value||b.dataset.allowed==='0')}
+function pipeline(status){const pos=stages.indexOf(status);document.querySelectorAll('.step').forEach((el,i)=>{el.classList.toggle('done',pos>i);el.classList.toggle('active',pos===i)})}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function updateButtons(job){const allowed={generateScript:job?.status==='DRAFT',approveScript:job?.status==='AWAITING_SCRIPT_SCIENTIFIC',generateScenes:job?.status==='SCRIPT_APPROVED',render:['SCENES_READY','AWAITING_FINAL_VIDEO'].includes(job?.status),approveFinal:job?.status==='AWAITING_FINAL_VIDEO'};Object.entries(allowed).forEach(([id,on])=>{$(id).disabled=!on;$(id).dataset.allowed=on?'1':'0'})}
+function renderJob(job){activeJob=job;pipeline(job.status);updateButtons(job);$('jobBox').innerHTML=`<div class="jobline"><div><b>${esc(job.lesson_title)}</b><div class="muted">${esc(job.id)}</div></div><span class="tag">الإصدار ${job.version}</span></div><div class="stage">${esc(labels[job.status]||job.status)}</div>`;
+  const approved=job.approvals||[];$('gateInfo').className='gate'+(job.status==='FINAL_APPROVED'?' ok':'');$('gateInfo').textContent=job.status==='FINAL_APPROVED'?'تم اعتماد الفيديو. ما زال النشر يدويًا ومغلقًا خارج المصنع.':job.status==='AWAITING_SCRIPT_SCIENTIFIC'?'توقف إلزامي: راجع الدقة والمصادر ثم اعتمد السكريبت علميًا.':job.status==='AWAITING_FINAL_VIDEO'?'توقف إلزامي: شاهد المعاينة كاملة ثم اعتمد الفيديو أو اطلب تعديلًا.':'المهمة محكومة ببوابتي SCRIPT_SCIENTIFIC و FINAL_VIDEO. لا نشر آلي.';
+  const sections=job.script_json?.sections||[],scenes=job.scene_plan_json?.scenes||[];$('content').innerHTML=(job.script_json?`<div class="card"><h3>السكريبت</h3><p><b>${esc(job.script_json.hook||job.script_json.title)}</b></p><ul>${sections.slice(0,5).map(x=>`<li>${esc(x.heading)}</li>`).join('')}</ul></div>`:'')+(job.scene_plan_json?`<div class="card"><h3>خطة المشاهد</h3><p>${scenes.length} مشاهد · بلا موسيقى · بلا أفاتار</p><ul>${scenes.slice(0,5).map(x=>`<li>${esc(x.id)} — ${esc(x.title)}</li>`).join('')}</ul></div>`:'')+(approved.length?`<div class="card"><h3>سجل الاعتمادات</h3><ul>${approved.map(a=>`<li>${esc(a.gate)} — ${esc(a.decision)} — v${a.version}</li>`).join('')}</ul></div>`:'');
+  if(job.preview_path){$('preview').src=job.preview_path+'?v='+Date.now();$('preview').hidden=false}else{$('preview').hidden=true;$('preview').removeAttribute('src')}
+}
+async function refresh(){const [health,lessonData,jobs]=await Promise.all([api('/health'),api('/api/lessons'),api('/api/jobs')]);lessons=lessonData.lessons;$('lessonsPlanned').textContent=health.curriculum_baseline.lessons;$('lessonsLoaded').textContent=health.database.lessons_loaded;$('jobsCount').textContent=health.database.jobs;$('waitingCount').textContent=health.database.waiting_review;$('lessonSelect').innerHTML=lessons.map(l=>`<option value="${esc(l.id)}">${esc(l.id)} — ${esc(l.title)}</option>`).join('');$('dot').classList.toggle('ok',health.ffmpeg&&health.pillow);$('healthText').textContent=health.ffmpeg&&health.pillow?'المصنع جاهز للرندر':'يلزم FFmpeg وPillow';if(!activeJob&&jobs.jobs.length)renderJob(jobs.jobs[0])}
+async function action(path,body={}){try{setBusy(true);const job=await api(path,{method:'POST',body:JSON.stringify(body)});renderJob(job);await refresh();toast('تم تنفيذ المرحلة وحفظ أثرها بنجاح')}catch(e){toast(e.message,true)}finally{setBusy(false);if(activeJob)updateButtons(activeJob)}}
+$('newJob').onclick=()=>action('/api/jobs',{lesson_id:$('lessonSelect').value});$('demo').onclick=()=>action('/api/demo');$('generateScript').onclick=()=>action(`/api/jobs/${activeJob.id}/generate-script`);$('approveScript').onclick=()=>action(`/api/jobs/${activeJob.id}/approve-script`,{decision:'APPROVED',notes:'اعتماد علمي صريح من لوحة المصنع'});$('generateScenes').onclick=()=>action(`/api/jobs/${activeJob.id}/generate-scenes`,{curated_demo:activeJob.model==='curated-demo-no-ollama'});$('render').onclick=()=>action(`/api/jobs/${activeJob.id}/render-preview`);$('approveFinal').onclick=()=>action(`/api/jobs/${activeJob.id}/approve-final`,{decision:'APPROVED',notes:'اعتماد نهائي صريح بعد مشاهدة المعاينة'});
+refresh().catch(e=>{toast(e.message,true);$('healthText').textContent='الخادم غير متصل'});
+</script>
+</body>
+</html>

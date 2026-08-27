@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "title": "النموذج الاحترافي 30 ثانية",
+  "duration_seconds": 30,
+  "resolution": "1920x1080",
+  "fps": 25,
+  "font_family": "Noto Sans Arabic",
+  "music": false,
+  "animated_avatar": false,
+  "portrait_used": false,
+  "voice_status": "APPROVED_RECORDING_REQUIRED",
+  "slides": [
+    {"id":"P01","duration":5.0,"type":"brand_intro","title":"منصة بوابة البصريات","subtitle":"معلومة علمية موثقة، بطريقة عملية وبسيطة"},
+    {"id":"P02","duration":4.8,"type":"lens_anatomy","title":"العدسة اللينة على سطح العين","subtitle":"تصحيح بصري يحتاج فهمًا دقيقًا"},
+    {"id":"P03","duration":4.5,"type":"parameters","title":"اقرأ مواصفات العدسة","subtitle":"ثلاثة رموز أساسية"},
+    {"id":"P04","duration":4.7,"type":"comparison","title":"افصل بين مفهومين","subtitle":"مادة العدسة وجدول الاستبدال مفهومان مختلفان"},
+    {"id":"P05","duration":4.8,"type":"safety","title":"العناية الآمنة تبدأ هنا","subtitle":"يد نظيفة، لا لماء الصنبور، لا للنوم غير المخصص"},
+    {"id":"P06","duration":4.2,"type":"sources","title":"المعلومة مرتبطة بمصدرها","subtitle":"الجهات العلمية موضحة بالعربية"},
+    {"id":"P07","duration":5.0,"type":"brand_outro","title":"معًا لبصريات أفضل","subtitle":"كان معكم مدرب البصريات محمد سعيد"}
+  ]
+}

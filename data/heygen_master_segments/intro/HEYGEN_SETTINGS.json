@@ -1,0 +1,43 @@
+{
+  "asset_id": "OPTICSGATE-INTRO-MASTER-V2",
+  "script_version": 2,
+  "script_approved_on": "2026-08-21",
+  "status": "READY_FOR_HEYGEN_NOT_FINAL_APPROVED",
+  "provider": "HeyGen",
+  "workflow": "Quick Avatar Video",
+  "avatar": {
+    "type": "Custom Digital Twin",
+    "motion_engine": "Avatar V",
+    "presenter": "مدرب البصريات محمد سعيد",
+    "look_reference": "PRESENTER_REFERENCE.png",
+    "delivery": "هادئ، مرحب، واثق، تواصل بصري مباشر، وحركة يد محدودة أسفل الصدر",
+    "automatic_fallback_allowed": false
+  },
+  "voice": {
+    "source": "صوت محمد سعيد المعتمد أو نسخته المعتمدة فقط",
+    "display_name": "Mohamed Saeed – Egyptian Academy Voice",
+    "engine": "Cartesia",
+    "reference": "VOICE_REFERENCE.wav",
+    "language": "ar-EG",
+    "dialect": "اللهجة المصرية الطبيعية",
+    "pace": "هادئ طبيعي، بلا تسريع مصطنع",
+    "approved_by_user": true,
+    "voice_and_dialect_test": "PASSED_2026-08-21",
+    "automatic_public_voice_allowed": false,
+    "automatic_engine_fallback_allowed": false,
+    "on_engine_unavailable": "STOP_FOR_HUMAN_REVIEW"
+  },
+  "video": {
+    "aspect_ratio": "16:9",
+    "resolution": "1920x1080",
+    "target_duration_seconds": 14.7,
+    "hard_max_duration_seconds": 15.0,
+    "music": false,
+    "sound_effects": false,
+    "burned_in_captions": false,
+    "background": "الخلفية المحايدة الدافئة الموجودة في مرجع المظهر"
+  },
+  "script_file": "SCRIPT_AR.txt",
+  "captions_reference_file": "CAPTIONS_AR.srt",
+  "required_human_gate": "FINAL_VIDEO"
+}

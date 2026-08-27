@@ -1,0 +1,15 @@
+{
+  "id": "OG-PRACT-CL-001",
+  "title": "مدخل إلى العدسات اللاصقة اللينة",
+  "audience": "الممارسون",
+  "target_duration_minutes": 8,
+  "topic_1": "تعريف مبسط للعدسات اللاصقة اللينة وموقعها ضمن وسائل تصحيح الإبصار.",
+  "topic_2": "الفروق العامة بين الأنواع من حيث المادة وجدول الاستبدال، دون الدخول في اختيار المريض السريري.",
+  "topic_3": "دمج التعريف والتصنيف في خريطة عملية تساعد الممارس على فهم المصطلحات قبل دراسة القياسات والعناية.",
+  "professional_scope": "تعليمي للممارسين؛ اختيار المريض والعدسة مسؤولية مسار الفاحصين والاختصاصيين.",
+  "public_warning": "غير مخصص للجمهور في هذه النسخة.",
+  "scientific_sources": [
+    {"id": "SRC-CDC-CL", "title": "CDC - Contact Lenses", "organization_ar": "المراكز الأمريكية لمكافحة الأمراض والوقاية منها", "url": "https://www.cdc.gov/contact-lenses/"},
+    {"id": "SRC-FDA-CL", "title": "FDA - Contact Lenses", "organization_ar": "هيئة الغذاء والدواء الأمريكية", "url": "https://www.fda.gov/medical-devices/consumer-products/contact-lenses"}
+  ]
+}

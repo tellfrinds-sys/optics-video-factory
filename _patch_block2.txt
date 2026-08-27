@@ -1,0 +1,112 @@
+def _fit_cover(image, size):
+    target_w, target_h = size
+    src_w, src_h = image.size
+    scale = max(target_w / src_w, target_h / src_h)
+    new_w, new_h = max(1, round(src_w * scale)), max(1, round(src_h * scale))
+    image = image.resize((new_w, new_h))
+    left = max(0, (new_w - target_w) // 2)
+    top = max(0, (new_h - target_h) // 2)
+    return image.crop((left, top, left + target_w, top + target_h))
+
+
+def _normalize_image_bytes(data: bytes, path: Path, size: tuple[int, int] | None = None) -> None:
+    """يحفظ أي صيغة صورة واردة (JPEG/PNG/WebP/...) كملف PNG حقيقي ومضمون،
+    بالاعتماد على المحتوى الفعلي للملف (magic bytes) وليس افتراض الصيغة،
+    مع فرض مقاس ثابت وأبعاد زوجية دائمًا (مطلوب لـ libx264 ولتناسق مقاطع الدمج النهائي)."""
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise FactoryError("Pillow غير مثبت؛ شغّل: pip install Pillow", 501) from exc
+    import io
+    try:
+        image = Image.open(io.BytesIO(data))
+        image.load()
+    except Exception as exc:
+        raise FactoryError(f"تعذر قراءة بيانات الصورة الواردة: {exc}", 400) from exc
+    if image.mode not in ("RGB", "RGBA"):
+        image = image.convert("RGB")
+    if size:
+        image = _fit_cover(image, size)
+    else:
+        w, h = image.size
+        new_w, new_h = w - (w % 2), h - (h % 2)
+        if (new_w, new_h) != (w, h):
+            image = image.crop((0, 0, max(2, new_w), max(2, new_h)))
+    image.save(path, "PNG", optimize=True)
+
+
+def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
+    video_uid = payload.get("video_uid")
+    scenes_in = payload.get("scenes") or []
+    if not video_uid or not scenes_in:
+        raise FactoryError("video_uid و scenes مطلوبين", 400)
+    if not shutil.which("ffmpeg"):
+        raise FactoryError("FFmpeg غير مثبت", 501)
+    render_cfg = config()["factory"]["render"]
+    target_size = (int(render_cfg["width"]), int(render_cfg["height"]))
+    out_dir = OUTPUTS_DIR / f"narrated_{video_uid}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    clip_paths: list[Path] = []
+    total = len(scenes_in)
+    for i, raw in enumerate(scenes_in, 1):
+        scene_no = raw.get("scene_no") or raw.get("scene no") or i
+        narration = str(raw.get("narration", ""))
+        on_screen = str(raw.get("on_screen_text") or raw.get("on screen text") or "")
+        visual = str(raw.get("visual_direction") or raw.get("visual direction") or "")
+        source_codes = raw.get("source_codes") or raw.get("source codes") or ""
+        visual_en = raw.get("visual_prompt_en") or "human eye anatomy cross section diagram"
+        scene = {
+            "type": "content",
+            "title": f"مشهد {scene_no}",
+            "on_screen": on_screen,
+            "visual_brief": visual_en,
+            "source_ids": [source_codes] if source_codes else [],
+        }
+        frame_path = out_dir / f"S{int(scene_no):02d}.png"
+        if raw.get("image_url"):
+            with urllib.request.urlopen(raw["image_url"], timeout=60) as resp:
+                _normalize_image_bytes(resp.read(), frame_path, target_size)
+        elif raw.get("image_base64"):
+            import base64 as b64lib
+            _normalize_image_bytes(b64lib.b64decode(raw["image_base64"]), frame_path, target_size)
+        else:
+            render_frame_ai(scene, frame_path, i, total)
+        audio_path = out_dir / f"S{int(scene_no):02d}.mp3"
+        if raw.get("audio_url"):
+            with urllib.request.urlopen(raw["audio_url"], timeout=60) as resp:
+                audio_path.write_bytes(resp.read())
+        elif raw.get("audio_base64"):
+            import base64 as b64lib
+            audio_path.write_bytes(b64lib.b64decode(raw["audio_base64"]))
+        else:
+            audio_path.write_bytes(heygen_tts(narration))
+        clip_path = out_dir / f"S{int(scene_no):02d}.mp4"
+        cmd = [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+            "-loop", "1", "-i", str(frame_path), "-i", str(audio_path),
+            "-af", "loudnorm=I=-16:TP=-1.5:LRA=7",
+            "-c:v", "libx264", "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k",
+            "-pix_fmt", "yuv420p", "-shortest", str(clip_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0 or not clip_path.exists():
+            raise FactoryError(f"فشل دمج المشهد {scene_no}: {result.stderr[-500:]}", 500)
+        clip_paths.append(clip_path)
+    concat_file = out_dir / "concat.txt"
+    concat_file.write_text(
+        "\n".join(f"file '{str(p.resolve()).replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'" for p in clip_paths),
+        encoding="utf-8",
+    )
+    final_path = out_dir / "final_narrated.mp4"
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "concat", "-safe", "0", "-i", str(concat_file),
+        "-c", "copy", str(final_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0 or not final_path.exists():
+        raise FactoryError(f"فشل الدمج النهائي: {result.stderr[-500:]}", 500)
+    relative = "/" + final_path.relative_to(ROOT).as_posix()
+    return {"status": "ok", "video_path": relative, "scenes": total, "video_uid": video_uid}
+
+

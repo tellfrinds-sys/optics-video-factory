@@ -1,0 +1,21 @@
+name: Mirror to Backup
+on:
+  push:
+    branches: [master]
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push mirror to backup repo (branch: video-factory)
+        env:
+          SSH_KEY: ${{ secrets.BACKUP_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          git remote add backup git@github.com:opticsgate-rgb/opticsgate-cloud-backup.git
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o IdentitiesOnly=yes" git push backup HEAD:video-factory

@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>بوابة البصريات | Optics Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    a { color: #2dd4bf; text-decoration: none; }
+    a:hover { color: #5eead4; }
+    .og-root { font-family: 'Tajawal', 'Cairo', system-ui, sans-serif; background: #060b18; color: #e9edf7; overflow-x: hidden; }
+    .og-heading { font-family: 'Cairo', 'Tajawal', system-ui, sans-serif; }
+    .og-btn { cursor: pointer; border: none; font-family: 'Cairo', sans-serif; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+    .og-btn:hover { transform: translateY(-2px); }
+    .og-card { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+    .og-card:hover { transform: translateY(-4px); border-color: rgba(45,212,191,0.55) !important; box-shadow: 0 20px 50px -20px rgba(20,184,166,0.35); }
+    .og-tag { transition: transform .2s ease, border-color .2s ease; }
+    .og-tag:hover { transform: translateY(-2px); border-color: rgba(45,212,191,0.5) !important; }
+    @keyframes og-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes og-spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    @keyframes og-float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+    @keyframes og-pulse { 0%,100% { opacity: .6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+    @keyframes og-drift { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-200px,-120px,0); } }
+    @keyframes og-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+    @keyframes og-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes og-hue { 0%,100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(24deg); } }
+    @keyframes og-blink-top { 0%, 88%, 100% { transform: translateY(-100%); } 92%, 96% { transform: translateY(0%); } }
+    @keyframes og-blink-bot { 0%, 88%, 100% { transform: translateY(100%); } 92%, 96% { transform: translateY(0%); } }
+    @keyframes og-logo-breathe { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-10px) scale(1.035); } }
+    @keyframes og-glow-pulse { 0%,100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+
+    .og-real-photo-banner,.og-programs-photo{display:flex;align-items:center;gap:18px;margin:0 0 26px;padding:14px;border:1px solid rgba(45,212,191,.22);border-radius:18px;background:rgba(4,14,30,.7)}
+    .og-real-photo-banner img{width:180px;height:110px;object-fit:cover;border-radius:12px}.og-programs-photo img{width:210px;height:120px;object-fit:cover;border-radius:12px}.og-real-photo-banner div,.og-programs-photo div{display:flex;flex-direction:column;gap:6px}.og-real-photo-banner strong,.og-programs-photo strong{color:#5eead4;font-size:16px}.og-real-photo-banner span,.og-programs-photo span{color:#aebcd4;font-size:13px;line-height:1.7}
+    .og-anatomy-card,.og-program-card,.og-equipment-card{overflow:hidden;background:linear-gradient(160deg,#0d172b,#0a1020);border:1px solid rgba(148,178,214,.16);border-radius:16px;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}.og-anatomy-card:hover,.og-program-card:hover,.og-equipment-card:hover{transform:translateY(-5px);border-color:rgba(45,212,191,.55);box-shadow:0 18px 42px rgba(0,0,0,.25)}.og-anatomy-card>img{width:100%;height:112px;object-fit:cover;display:block;filter:saturate(.9) contrast(1.05)}.og-anatomy-copy{padding:13px}.og-anatomy-copy h3{margin:0 0 6px;color:#5eead4;font-size:14px}.og-anatomy-copy p{margin:0;color:#9eafc8;font-size:12px;line-height:1.7}.og-program-card>img{width:100%;height:145px;object-fit:cover;display:block}.og-program-card>div{display:flex;align-items:center;gap:10px;padding:14px}.og-program-card h3{margin:0;color:#f0f4fa;font-size:14px;line-height:1.55}.og-program-icon{display:flex;width:34px;height:34px;flex:0 0 34px;border-radius:9px;overflow:hidden;border:1px solid rgba(45,212,191,.35)}.og-program-icon img{width:100%;height:100%;object-fit:cover}.og-equipment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.og-equipment-card img{width:100%;height:150px;display:block;object-fit:cover}.og-equipment-card div{padding:14px}.og-equipment-card h3{margin:0 0 5px;color:#f0f4fa;font-size:15px}.og-equipment-card p{margin:0;color:#98a9c1;font-size:12px;line-height:1.6}
+    @media (max-width:880px){.og-real-photo-banner,.og-programs-photo{align-items:stretch;flex-direction:column}.og-real-photo-banner img,.og-programs-photo img{width:100%;height:180px}.og-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.og-anatomy-card>img{height:130px}}
+    @media (max-width:560px){.og-equipment-grid{grid-template-columns:1fr}.og-program-card>img{height:180px}}
+    @media (prefers-reduced-motion:reduce){.og-orbit-ring,.og-orbit-ring2,.og-orbit-ring3,.og-logo-float,.og-lid-top,.og-lid-bot,.og-iris,.og-galaxy{animation:none!important}.og-card,.og-tag,.og-btn,.og-anatomy-card,.og-program-card,.og-equipment-card{transition:none!important}}
+    .og-rise { animation: og-rise .8s cubic-bezier(.2,.7,.2,1) both; }
+    .og-orbit-ring { animation: og-spin 10s linear infinite; }
+    .og-orbit-ring2 { animation: og-spin-rev 16s linear infinite; }
+    .og-orbit-ring3 { animation: og-spin 26s linear infinite; }
+    .og-star { animation: og-pulse 3.2s ease-in-out infinite; }
+    .og-iris { animation: og-hue 9s ease-in-out infinite; }
+    .og-galaxy { animation: og-spin 7s linear infinite; transform-box: fill-box; transform-origin: center; }
+    .og-lid-top { animation: og-blink-top 4.2s ease-in-out infinite; }
+    .og-lid-bot { animation: og-blink-bot 4.2s ease-in-out infinite; }
+    .og-logo-float { animation: og-logo-breathe 5.5s ease-in-out infinite; }
+    .og-glowpulse { animation: og-glow-pulse 4s ease-in-out infinite; }
+    .og-play:hover .og-play-circle { transform: scale(1.08); box-shadow: 0 0 0 14px rgba(45,212,191,0.12); }
+    .og-play-circle { transition: transform .25s ease, box-shadow .25s ease; }
+    ::selection { background: rgba(45,212,191,0.35); }
+    @media (max-width: 880px) {
+      .og-hide-mobile { display: none !important; }
+      .og-stack-mobile { flex-direction: column !important; }
+      .og-full-mobile { width: 100% !important; }
+      .og-grid-2-mobile { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+      .og-grid-1-mobile { grid-template-columns: minmax(0,1fr) !important; }
+    }
+  
+
+    .og-modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,6,18,.78);backdrop-filter:blur(12px)}.og-modal.is-open{display:flex}.og-modal-card{position:relative;width:min(560px,100%);max-height:92vh;overflow:auto;background:linear-gradient(160deg,#101d38,#081123);border:1px solid rgba(45,212,191,.38);border-radius:24px;padding:32px;box-shadow:0 28px 90px rgba(0,0,0,.55)}.og-modal-close{position:absolute;top:14px;inset-inline-end:16px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(219,228,242,.25);background:rgba(255,255,255,.06);color:#f4f7fb;font-size:22px;cursor:pointer}.og-form{display:grid;gap:14px;margin-top:24px}.og-form label{display:grid;gap:7px;color:#dbe4f2;font-size:13px;font-weight:700;text-align:start}.og-form input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid rgba(148,178,214,.28);background:#071021;color:#f4f7fb;font:inherit;outline:none}.og-form input:focus{border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,.14)}.og-form button{padding:14px 18px;border:0;border-radius:11px;background:linear-gradient(135deg,#2dd4bf,#0d9488);color:#04211d;font:800 15px Cairo,Tajawal,sans-serif;cursor:pointer}.og-form button:disabled{opacity:.65;cursor:wait}.og-form-note{color:#8fa0bc;font-size:12px;line-height:1.7;margin:0;text-align:start}.og-form-status{display:none;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.6}.og-form-status.is-visible{display:block}.og-form-status.success{background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.35);color:#8ff7e6}.og-form-status.error{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fecaca}.og-clickable{cursor:pointer}.og-clickable:focus-visible{outline:3px solid #5eead4;outline-offset:4px}
+    @media(max-width:560px){.og-modal-card{padding:26px 20px}.og-modal{padding:12px}}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const state = { lang: 'ar' };
+// ضع رابط Google Apps Script Web App المنشور هنا بصيغة https://script.google.com/macros/s/…/exec
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzc1LjNndVJX4zrBCX27nRd0mwROMDQ3-zoUfM7gu9rHVBDeFvz3VcXMcawaVJfLAI/exec';
+
+function openSignup(source = '') { const modal=document.getElementById('signup-modal'); if(!modal) return; modal.classList.add('is-open'); modal.setAttribute('aria-hidden','false'); const sourceInput=document.getElementById('signup-source'); if(sourceInput) sourceInput.value=source; setTimeout(()=>document.getElementById('signup-name')?.focus(),50); }
+function closeSignup(){ const modal=document.getElementById('signup-modal'); if(!modal) return; modal.classList.remove('is-open'); modal.setAttribute('aria-hidden','true'); }
+function handleSignupSubmit(event){
+  event.preventDefault();
+  const form=event.currentTarget, button=form.querySelector('button[type="submit"]'), status=document.getElementById('signup-status');
+  const email=form.email.value.trim(), phone=form.phone.value.trim();
+  if(!email || !phone){ status.textContent=state.lang==='ar'?'البريد الإلكتروني ورقم الهاتف مطلوبان.':'Email and mobile phone are required.'; status.className='og-form-status is-visible error'; return; }
+  button.disabled=true; button.textContent=state.lang==='ar'?'جارٍ الحفظ…':'Saving…'; status.className='og-form-status';
+  const payload={name:form.name.value.trim(),email,phone,source:form.source.value||'landing-page',submittedAt:new Date().toISOString(),site:'OpticsGate.online'};
+  if(GOOGLE_APPS_SCRIPT_URL.includes('PASTE_YOUR_')){
+    status.textContent=state.lang==='ar'?'تم تجهيز البيانات. أضف رابط Google Apps Script في متغير الإعداد لإرسالها إلى الشيت.':'Data is ready. Add the Google Apps Script URL in the config variable to send it to the sheet.'; status.className='og-form-status is-visible success'; button.disabled=false; button.textContent=state.lang==='ar'?'سجل اهتمامي':'Register my interest'; return;
+  }
+  fetch(GOOGLE_APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+    .then(()=>{status.textContent=state.lang==='ar'?'شكرًا لإهتمامك. تم تسجيل بياناتك وستكون من أوائل المدعوين في افتتاح بوابة البصريات.':'Thank you for your interest. Your details were recorded and you will be among the first invited to the Optics Gate opening.'; status.className='og-form-status is-visible success'; form.reset();})
+    .catch(()=>{status.textContent=state.lang==='ar'?'تعذر الإرسال حاليًا. يرجى المحاولة مرة أخرى.':'Submission failed. Please try again.'; status.className='og-form-status is-visible error';})
+    .finally(()=>{button.disabled=false; button.textContent=state.lang==='ar'?'سجل اهتمامي':'Register my interest';});
+}
+function activateInteractiveItems(){ document.querySelectorAll('.og-card,.og-tag,.og-program-card,.og-equipment-card,.og-play').forEach((item)=>{ item.classList.add('og-clickable'); item.setAttribute('tabindex','0'); item.setAttribute('role','button'); item.addEventListener('click',()=>openSignup(item.innerText.trim().slice(0,80))); item.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSignup(item.innerText.trim().slice(0,80));}}); }); }
+
+function toggleLang() { state.lang = state.lang === 'ar' ? 'en' : 'ar'; render(); }
+
+function render() {
+  const lang = state.lang;
+    const accent = '#2dd4bf';
+    const tgLink = 'https://t.me/YOUR_CHANNEL';
+    const iconGeneral = '👁️';
+    const iconAssist = '🧰';
+    const iconGrad = '🎓';
+    const iconExpert = '⭐';
+    const iconClinic = '🏥';
+
+    const AR = {
+      dir: 'rtl', align: 'right',
+      brand: 'بوابة البصريات', brandSub: 'Optics Gate',
+      langSwitch: 'EN', navCta: 'تيليجرام',
+      kicker: 'منصة تدريب وتعليم متخصصة في علوم البصريات',
+      heroTitleA: 'بوابة البصريات.', heroTitleB: 'أصبح للبصريات بوابة.',
+      heroDesc: 'تدريب احترافي متكامل في مجال البصريات الطبية، من نظارات وعدسات لاصقة إلى أحدث أجهزة الفحص — بإشراف خبرة تمتد لثلاثين عامًا.',
+      heroCta: 'انضم إلينا الآن', heroSecondary: 'تصفح البرامج التدريبية',
+      arrowX1: 5, arrowX2: 19, arrowPts: '12 5 19 12 12 19',
+      videoSoon: 'فيديو تعريفي بالمؤسس قريبًا', videoBadge: 'قيد التصوير حاليًا',
+      audienceKicker: 'الفئات المستهدفة', audienceTitle: 'اشتراكات مصممة لكل مستوى في مجال البصريات',
+      audienceDesc: 'من المهتم العادي إلى الفاحص المرخص صاحب الخبرة — لكل فئة مسار ومستوى اشتراك يناسبها.',
+      processKicker: 'الجودة العلمية', processTitle: 'كل محتوى بيمر بمراحل مراجعة قبل النشر',
+      processDesc: 'منظومة كاملة لضمان الدقة العلمية ووضوح الشرح في كل درس وبرنامج تدريبي.',
+      flagshipKicker: 'الدرس الرئيسي', flagshipTitle: 'تشريح العين وميكانيزم الإبصار',
+      flagshipDesc: 'رحلة تفصيلية داخل مكونات العين العشرة الأساسية، وكيف تعمل معًا لتكوين الرؤية.',
+      liveBadge: 'متاح الآن',
+      anatCornea: 'القرنية', anatCorneaDesc: 'الطبقة الشفافة الأمامية التي يدخل منها الضوء إلى العين.',
+      anatIris: 'القزحية', anatIrisDesc: 'الجزء الملوّن الذي يتحكم في حجم البؤبؤ وكمية الضوء الداخلة.',
+      anatLens: 'العدسة', anatLensDesc: 'تُركّز الضوء على الشبكية وتساعد على الرؤية القريبة والبعيدة.',
+      anatRetina: 'الشبكية', anatRetinaDesc: 'الطبقة الحساسة للضوء التي تحوّل الصورة إلى إشارات عصبية.',
+      anatMacula: 'البقعة الصفراء (الفوفيا)', anatMaculaDesc: 'مركز الإبصار الدقيق، ومسؤولة عن أوضح رؤية للتفاصيل.',
+      anatNerve: 'العصب البصري', anatNerveDesc: 'ينقل الإشارة من الشبكية إلى المخ ليتم تفسيرها كصورة.',
+      anatVitreous: 'الجسم الزجاجي', anatVitreousDesc: 'مادة هلامية شفافة تملأ العين وتحافظ على شكلها الكروي.',
+      anatSclera: 'الصُّلبة', anatScleraDesc: 'الطبقة الخارجية البيضاء التي تحمي مكونات العين الداخلية.',
+      anatChoroid: 'المشيمية', anatChoroidDesc: 'طبقة غنية بالأوعية الدموية تغذّي طبقات العين الداخلية.',
+      anatCiliary: 'الجسم الهدبي', anatCiliaryDesc: 'ينتج السائل المائي ويتحكم في تغيير شكل العدسة أثناء التركيز.',
+      prog1: '1. نظارات طبية', prog2: '2. نظارات شمسية', prog3: '3. عدسات لاصقة مرنة', prog4: '4. عدسات لاصقة صلبة',
+      prog5: '5. عدسات لاصقة تجميلية وطبية (عمى الألوان والسحابة البيضاء)', prog6: '6. عدسات النظارات وأنواعها',
+      prog7: '7. نبذة تعريفية عن أمراض العيون والأخطاء الإنكسارية', prog8: '8. أنواع الفحوصات اللازمة للعين', prog9: '9. العيون الصناعية',
+      prog10: '10. المعينات البصرية لضعف البصر الشديد', prog11: '11. الفلاتر الطبية والمناشير',
+      prog12: '12. مهارات البيع والتعامل مع العملاء', prog13: '13. إدارة مراكز ومحال البصريات',
+      programsKicker: 'البرامج التدريبية', programsTitle: 'برامج تدريب عملية في كل تخصصات البصريات',
+      programsDesc: 'برامج تدريب عملية في كل تخصصات البصريات، من القياسات الصحيحة إلى أدوات القياس والممارسة اليومية في العيادة والمحل.',
+      equipKicker: 'الأجهزة الطبية', equipTitle: 'تدريب نظري على أجهزة الفحص والتشخيص.',
+      equipDesc: 'تدريب نظري عملي على أجهزة الفحص والتشخيص، مع صور حقيقية لكل جهاز وطريقة استخدامه باحتراف.',
+      founderKicker: 'مؤسس المنصة المدرب', founderName: 'محمد سعيد', founderRole: 'أخصائي بصريات طبية · مرخّص من وزارة الصحة المصرية والسعودية منذ عام 1996',
+      founderBio: 'ومدرّب بصريات مستقل بخبرة تمتد لثلاثين عامًا في تدريب وتأهيل العاملين بمجال البصريات الطبية، عمل كمدرب بصريات سابقًا لدى كبرى شركات البصريات في الخليج العربي وشمال أفريقيا.',
+      finalTitle: 'ابدأ رحلتك في عالم البصريات', finalDesc: 'انضم لقناتنا على تيليجرام وكن أول من يعرف عن البرامج التدريبية والمحتوى الجديد.',
+      finalCta: 'انضم على تيليجرام',
+      footerRights: '© بوابة البصريات — جميع الحقوق محفوظة', footerTag: 'Optics Gate Academy',
+    };
+
+    
+    const EN = {
+      dir: 'ltr', align: 'left',
+      brand: 'Optics Gate', brandSub: 'بوابة البصريات',
+      langSwitch: 'AR', navCta: 'Telegram',
+      kicker: 'A specialized optics training & education platform',
+      heroTitleA: 'Optics Gate.', heroTitleB: 'Optics finally has its gate.',
+      heroDesc: 'Complete professional training in medical optics — from glasses and contact lenses to modern diagnostic equipment — led by 30 years of hands-on expertise.',
+      heroCta: 'Join us now', heroSecondary: 'Browse training programs',
+      arrowX1: 19, arrowX2: 5, arrowPts: '12 19 5 12 12 5',
+      videoSoon: 'Founder intro video coming soon', videoBadge: 'Currently filming',
+      audienceKicker: "Who it's for", audienceTitle: 'Membership tiers for every level in optics',
+      audienceDesc: 'From the curious beginner to the experienced licensed optometrist — a track and tier for every stage.',
+      processKicker: 'Scientific quality', processTitle: 'Every piece of content is reviewed before publishing',
+      processDesc: 'A full system built to guarantee accuracy and clarity across every lesson and program.',
+      flagshipKicker: 'Flagship lesson', flagshipTitle: 'Eye Anatomy & the Mechanism of Vision',
+      flagshipDesc: "A detailed walkthrough of the eye's ten core components and how they work together to form vision.",
+      liveBadge: 'Available now',
+      anatCornea: 'Cornea', anatCorneaDesc: 'The transparent front layer through which light enters the eye.',
+      anatIris: 'Iris', anatIrisDesc: 'The colored part that controls pupil size and incoming light.',
+      anatLens: 'Lens', anatLensDesc: 'Focuses light onto the retina, enabling near and far vision.',
+      anatRetina: 'Retina', anatRetinaDesc: 'The light-sensitive layer that converts images into nerve signals.',
+      anatMacula: 'Macula (Fovea)', anatMaculaDesc: 'The center of sharp vision, responsible for fine detail.',
+      anatNerve: 'Optic Nerve', anatNerveDesc: 'Carries the signal from the retina to the brain for interpretation.',
+      anatVitreous: 'Vitreous Body', anatVitreousDesc: 'A clear gel that fills the eye and maintains its round shape.',
+      anatSclera: 'Sclera', anatScleraDesc: "The white outer layer that protects the eye's inner structures.",
+      anatChoroid: 'Choroid', anatChoroidDesc: 'A vascular layer that nourishes the inner layers of the eye.',
+      anatCiliary: 'Ciliary Body', anatCiliaryDesc: 'Produces aqueous humor and reshapes the lens during focusing.',
+      prog1: '1. Prescription Glasses', prog2: '2. Sunglasses', prog3: '3. Soft Contact Lenses', prog4: '4. Rigid (RGP) Contact Lenses',
+      prog5: '5. Cosmetic & Medical Lenses (Color-blindness & Cataract Lenses)', prog6: '6. Spectacle Lenses & Their Types',
+      prog7: '7. Introduction to Eye Diseases & Refractive Errors', prog8: '8. Types of Eye Examinations', prog9: '9. Ocular Prosthetics',
+      prog10: '10. Low Vision Aids for Severe Visual Impairment', prog11: '11. Medical Filters & Prisms',
+      prog12: '12. Optical Center & Shop Management', prog13: '13. Sales & Customer Service Skills',
+      programsKicker: 'Training programs', programsTitle: 'Hands-on programs across every optics specialty',
+      programsDesc: 'Hands-on training across every optics specialty, including correct measurements and practical measurement tools for practitioners.',
+      equipKicker: 'Medical equipment', equipTitle: 'Theoretical training on diagnostic instruments.',
+      equipDesc: 'Theoretical and practical orientation to examination and diagnostic instruments, with real photographs of each device.',
+      founderKicker: 'Founder & Trainer', founderName: 'Mohamed Said', founderRole: 'Medical Optometrist · Licensed by the Egyptian & Saudi Ministries of Health since 1996',
+      founderBio: 'An independent optics trainer with 30 years of experience training and qualifying professionals in medical optics, previously working as an optics trainer for leading optics companies across the Gulf and North Africa.',
+      finalTitle: 'Start your journey into optics', finalDesc: 'Join our Telegram channel and be the first to know about new training programs and content.',
+      finalCta: 'Join on Telegram',
+      footerRights: '© Optics Gate — All rights reserved', footerTag: 'Optics Gate Academy',
+    };
+    const tiers = lang === 'ar' ? [
+      { icon: iconGeneral, title: 'الجمهور العام المهتم بالثقافة البصرية' },
+      { icon: iconAssist, title: 'مساعدو البصريات غير المرخصين' },
+      { icon: iconGrad, title: 'فنيو البصريات المرخصون المبتدئون وخريجو جدد' },
+      { icon: iconExpert, title: 'فنيو البصريات المرخصون ذوو الخبرة' },
+      { icon: iconClinic, title: 'فاحصو البصريات في المراكز والعيادات الطبية' },
+    ] : [
+      { icon: iconGeneral, title: 'General public interested in eye-care literacy' },
+      { icon: iconAssist, title: 'Unlicensed optical shop assistants' },
+      { icon: iconGrad, title: 'Newly licensed opticians & fresh graduates' },
+      { icon: iconExpert, title: 'Experienced licensed opticians' },
+      { icon: iconClinic, title: 'Licensed optometrists in clinics & centers' },
+    ];
+    const processSteps = lang === 'ar' ? [
+      { n: '1', title: 'تجميع المصادر', desc: 'كل محتوى مبني على مصادر علمية موثقة ومعتمدة.' },
+      { n: '2', title: 'صياغة المحتوى', desc: 'صياغة أولية بأسلوب واضح ومباشر يناسب كل مستوى.' },
+      { n: '3', title: 'مراجعة بشرية', desc: 'مراجعة دقيقة من المدرّب قبل اعتماد أي محتوى.' },
+      { n: '4', title: 'النشر', desc: 'نشر الدرس أو البرنامج بعد اعتماده رسميًا.' },
+    ] : [
+      { n: '1', title: 'Sourcing', desc: 'Every piece is built on verified scientific sources.' },
+      { n: '2', title: 'Drafting', desc: 'An initial draft in clear language suited to every level.' },
+      { n: '3', title: 'Human review', desc: 'Careful review by the trainer before anything is approved.' },
+      { n: '4', title: 'Publishing', desc: 'The lesson or program goes live once formally approved.' },
+    ];
+
+  const t = lang === 'ar' ? AR : EN;
+
+  document.getElementById('app').innerHTML = `<div dir="${t.dir}" class="og-root" style="width:100%; min-height:100%; position:relative;">
+
+  <!-- ===== NAV ===== -->
+  <div style="position:sticky; top:0; z-index:40; backdrop-filter:blur(14px); background:rgba(6,11,24,0.72); border-bottom:1px solid rgba(148,178,214,0.12);">
+    <div style="max-width:1220px; margin:0 auto; padding:14px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <img src="assets/logo_nav.png" alt="Optics Gate" style="width:84px; height:84px; object-fit:contain;" />
+        <div style="display:flex; flex-direction:column; line-height:1.1;">
+          <span class="og-heading" style="font-size:19px; font-weight:800; color:#f4f7fb; letter-spacing:.2px;">${t.brand}</span>
+          <span style="font-size:11px; color:#7d93b3; font-weight:500;">${t.brandSub}</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button onclick="toggleLang()" class="og-btn" style="background:rgba(148,178,214,0.1); color:#c6d3e8; border:1px solid rgba(148,178,214,0.25); border-radius:999px; padding:8px 16px; font-size:13px; font-weight:700;">${t.langSwitch}</button>
+        <a href="#signup" onclick="event.preventDefault();openSignup('Telegram')" class="og-btn og-hide-mobile" style="background:linear-gradient(135deg,${accent},#0d9488); color:#04211d; border-radius:999px; padding:9px 20px; font-size:13px; font-weight:800;">${t.navCta}</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HERO ===== -->
+  <div style="position:relative; padding:88px 24px 110px; overflow:hidden;">
+    <div style="position:absolute; inset:0; background:
+        radial-gradient(60% 50% at 18% 8%, rgba(124,58,237,0.16), transparent 60%),
+        radial-gradient(55% 55% at 85% 15%, rgba(20,184,166,0.20), transparent 60%),
+        linear-gradient(180deg, #060b18 0%, #081123 55%, #060b18 100%);"></div>
+    <div style="position:absolute; inset:0; opacity:.5; background-image: radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,.7) 99%, transparent), radial-gradient(1.5px 1.5px at 70% 60%, rgba(255,255,255,.5) 99%, transparent), radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.6) 99%, transparent), radial-gradient(1.5px 1.5px at 90% 25%, rgba(255,255,255,.5) 99%, transparent), radial-gradient(1px 1px at 55% 15%, rgba(255,255,255,.4) 99%, transparent); background-size: 700px 700px; animation: og-drift 60s linear infinite;"></div>
+
+    <div style="position:relative; max-width:1220px; margin:0 auto; display:flex; gap:56px; align-items:center; flex-wrap:wrap;" class="og-stack-mobile">
+      <div class="og-rise" style="flex:1 1 480px; min-width:300px;">
+        <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.3); color:#5eead4; padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:700; margin-bottom:22px;">
+          <span style="width:7px; height:7px; border-radius:50%; background:#2dd4bf; box-shadow:0 0 10px #2dd4bf;"></span>
+          ${t.kicker}
+        </div>
+        <h1 class="og-heading" style="font-size:44px; line-height:1.18; font-weight:900; color:#f7f9fc; margin:0 0 20px;">${t.heroTitleA}<br/><span style="background:linear-gradient(90deg,${accent},#a78bfa,${accent}); background-size:200% auto; -webkit-background-clip:text; background-clip:text; color:transparent; animation: og-shimmer 6s linear infinite;">${t.heroTitleB}</span></h1>
+        <p style="font-size:16.5px; line-height:1.85; color:#aebcd4; max-width:520px; margin:0 0 32px;">${t.heroDesc}</p>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <a href="#signup" onclick="event.preventDefault();openSignup('Telegram')" class="og-btn" style="background:linear-gradient(135deg,${accent},#0d9488); color:#04211d; border-radius:12px; padding:15px 30px; font-size:15px; font-weight:800; display:inline-flex; align-items:center; gap:8px; box-shadow:0 18px 40px -14px rgba(20,184,166,0.55);">
+            ${t.heroCta}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="${t.arrowX1}" y1="12" x2="${t.arrowX2}" y2="12"/><polyline points="${t.arrowPts}"/></svg>
+          </a>
+          <a href="#programs" onclick="event.preventDefault();openSignup('Training programs')" class="og-btn" style="background:transparent; color:#dbe4f2; border:1px solid rgba(219,228,242,0.25); border-radius:12px; padding:15px 26px; font-size:15px; font-weight:700;">${t.heroSecondary}</a>
+        </div>
+      </div>
+
+      <!-- Brand logo -->
+      <div class="og-rise og-full-mobile" style="flex:1 1 420px; min-width:300px; display:flex; justify-content:center;">
+        <div style="position:relative; width:100%; max-width:440px; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center;">
+          <div class="og-orbit-ring" style="position:absolute; width:105%; height:105%; border:1px dashed rgba(45,212,191,0.3); border-radius:50%;"></div>
+          <div class="og-orbit-ring2" style="position:absolute; width:118%; height:118%; border:1px dashed rgba(167,139,250,0.2); border-radius:50%;"></div>
+          <div class="og-glowpulse" style="position:absolute; width:100%; height:100%; border-radius:50%; background: radial-gradient(60% 60% at 50% 45%, rgba(45,212,191,0.22), transparent 70%);"></div>
+          <div class="og-orbit-ring3" style="position:absolute; width:90%; height:90%; border-radius:50%; background: conic-gradient(from 0deg, rgba(45,212,191,0.16), transparent 30%, rgba(167,139,250,0.14), transparent 70%);"></div>
+
+          <div class="og-logo-float" style="position:relative; width:80%; max-width:400px;">
+            <div style="position:relative; width:100%; aspect-ratio:480/393;">
+              <img src="assets/logo_hero_dynamic.png" alt="Optics Gate" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; filter: drop-shadow(0 20px 45px rgba(20,184,166,0.45));" />
+              <div style="position:absolute; top:0; left:0; right:0; height:78%; overflow:hidden; border-radius:8% / 10%; pointer-events:none;">
+                <div class="og-lid-top" style="position:absolute; top:0; left:0; right:0; height:50%; background:#060b18;"></div>
+                <div class="og-lid-bot" style="position:absolute; top:50%; left:0; right:0; height:50%; background:#060b18;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MEMBERSHIP / AUDIENCE ===== -->
+  <div style="max-width:1220px; margin:0 auto; padding:70px 24px 20px;">
+    <div style="text-align:center; max-width:680px; margin:0 auto 46px;">
+      <div style="color:${accent}; font-weight:800; font-size:13px; letter-spacing:.4px; margin-bottom:10px;">${t.audienceKicker}</div>
+      <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f4f7fb; margin:0 0 14px;">${t.audienceTitle}</h2>
+      <p style="color:#93a3bf; font-size:15px; line-height:1.8; margin:0;">${t.audienceDesc}</p>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:16px;" class="og-grid-2-mobile">
+      ${tiers.map(tier => '\n        <div class="og-card" style="background:linear-gradient(160deg,#0c1428,#0a0f20); border:1px solid rgba(148,178,214,0.14); border-radius:16px; padding:22px 18px; display:flex; flex-direction:column; gap:12px;">\n          <div style="width:38px; height:38px; border-radius:10px; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.3); display:flex; align-items:center; justify-content:center; font-size:17px;">\n            ' + tier.icon + '\n          </div>\n          <h3 class="og-heading" style="font-size:14.5px; font-weight:700; color:#f0f4fa; margin:0; line-height:1.5;">' + tier.title + '</h3>\n        </div>\n      ').join('')}
+    </div>
+  </div>
+
+  <!-- ===== PROCESS ===== -->
+  <div style="max-width:1220px; margin:0 auto; padding:90px 24px 20px;">
+    <div style="text-align:center; max-width:640px; margin:0 auto 50px;">
+      <div style="color:#a78bfa; font-weight:800; font-size:13px; letter-spacing:.4px; margin-bottom:10px;">${t.processKicker}</div>
+      <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f4f7fb; margin:0 0 14px;">${t.processTitle}</h2>
+      <p style="color:#93a3bf; font-size:15px; line-height:1.8; margin:0;">${t.processDesc}</p>
+    </div>
+    <div style="position:relative; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:20px;" class="og-stack-mobile">
+      <div class="og-hide-mobile" style="position:absolute; top:23px; inset-inline-start:12%; inset-inline-end:12%; height:1px; background:linear-gradient(90deg, transparent, rgba(45,212,191,0.4), rgba(167,139,250,0.4), transparent);"></div>
+      ${processSteps.map(step => '\n        <div style="position:relative; display:flex; flex-direction:column; gap:14px;">\n          <div style="width:46px; height:46px; border-radius:50%; background:#0a1122; border:1.5px solid rgba(45,212,191,0.5); display:flex; align-items:center; justify-content:center; font-weight:800; color:${accent}; font-family:\'Cairo\',sans-serif; z-index:1;">' + step.n + '</div>\n          <h3 class="og-heading" style="font-size:15.5px; font-weight:700; color:#f0f4fa; margin:0;">' + step.title + '</h3>\n          <p style="font-size:13.5px; color:#8fa0bc; line-height:1.7; margin:0;">' + step.desc + '</p>\n        </div>\n      ').join('')}
+    </div>
+  </div>
+
+  <!-- ===== FLAGSHIP LESSON: EYE ANATOMY ===== -->
+  <div id="programs" style="max-width:1220px; margin:90px auto 0; padding:0 24px;">
+    <div style="background:linear-gradient(160deg,#0c1730,#0a1122); border:1px solid rgba(148,178,214,0.16); border-radius:26px; padding:44px;">
+      <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; margin-bottom:30px;">
+        <div style="flex:1 1 360px;">
+          <div style="color:#f5c451; font-weight:800; font-size:13px; margin-bottom:10px;">${t.flagshipKicker}</div>
+          <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f4f7fb; margin:0 0 10px;">${t.flagshipTitle}</h2>
+          <p style="color:#b7c4d8; font-size:15px; line-height:1.9; margin:0; max-width:620px;">${t.flagshipDesc}</p>
+        </div>
+        <div style="flex:0 1 360px; min-width:260px;">
+          <img src="assets/real/eye-anatomy-reference.jpg" alt="صورة حقيقية مرجعية لتشريح العين" loading="lazy" style="width:100%; height:210px; object-fit:cover; border-radius:18px; border:1px solid rgba(45,212,191,.35); box-shadow:0 20px 50px rgba(0,0,0,.28);" />
+        </div>
+      </div>
+      <div class="og-real-photo-banner">
+        <img src="assets/real/eye-specimen.jpg" alt="صورة حقيقية لعينة عين تُظهر البنية الداخلية" loading="lazy" />
+        <div><strong>${lang === 'ar' ? 'مادة بصرية حقيقية' : 'Real visual material'}</strong><span>${lang === 'ar' ? 'صور تشريحية واقعية للتعلّم، وليست أيقونات أو رسومات رمزية.' : 'Realistic anatomy imagery for learning, not icons or symbolic illustrations.'}</span></div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px;" class="og-grid-2-mobile">
+        ${[
+          ['real/eye-cross-section.jpg',t.anatCornea,t.anatCorneaDesc],['real/eye-gross-specimen.jpg',t.anatIris,t.anatIrisDesc],['real/ciliary-body.jpg',t.anatLens,t.anatLensDesc],['real/fundus-clinic.jpg',t.anatRetina,t.anatRetinaDesc],['real/eye-anatomy-reference.jpg',t.anatMacula,t.anatMaculaDesc],['real/optic-nerve-anatomy.png',t.anatNerve,t.anatNerveDesc],['real/eye-specimen.jpg',t.anatVitreous,t.anatVitreousDesc],['real/eye-orbit-specimen.jpg',t.anatSclera,t.anatScleraDesc],['real/eye-cross-section.jpg',t.anatChoroid,t.anatChoroidDesc],['real/ciliary-body.jpg',t.anatCiliary,t.anatCiliaryDesc]
+        ].map(([icon,title,desc], index) => `
+          <article class="og-anatomy-card">
+            <img src="assets/${icon}" alt="صورة حقيقية مرتبطة بـ ${title}" loading="lazy" />
+            <div class="og-anatomy-copy"><h3 class="og-heading">${title}</h3><p>${desc}</p></div>
+          </article>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TRAINING PROGRAMS ===== -->
+  <div style="max-width:1220px; margin:0 auto; padding:90px 24px 20px;">
+    <div style="text-align:center; max-width:700px; margin:0 auto 46px;">
+      <div style="color:${accent}; font-weight:800; font-size:13px; margin-bottom:10px;">${t.programsKicker}</div>
+      <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f4f7fb; margin:0 0 14px;">${t.programsTitle}</h2>
+      <p style="color:#b7c4d8; font-size:15px; line-height:1.9; margin:0;">${t.programsDesc}</p>
+    </div>
+    <div class="og-programs-photo"><img src="assets/real/optometry-equipment.jpeg" alt="تدريب عملي داخل عيادة بصريات" loading="lazy" /><div><strong>${lang === 'ar' ? 'تدريب عملي قائم على الممارسة' : 'Practice-led training'}</strong><span>${lang === 'ar' ? 'مشاهد حقيقية من بيئة البصريات والأدوات المستخدمة في العمل.' : 'Real-world optics environments and tools used in practice.'}</span></div></div>
+    <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px;" class="og-grid-1-mobile">
+      ${[
+        ['real/eye-tools.jpg',t.prog1],['real/optometry-equipment.jpeg',t.prog2],['real/slit-lamp.jpg',t.prog3],['real/eye-tools.jpg',t.prog4],['real/fundus-camera.webp',t.prog5],['real/optometry-equipment.jpeg',t.prog6],['real/eye-specimen.jpg',t.prog7],['real/eye-anatomy-reference.jpg',t.prog8],['real/eye-gross-specimen.jpg',t.prog9],['real/eye-tools.jpg',t.prog10],['real/slit-lamp.jpg',t.prog11],['real/optometry-equipment.jpeg',t.prog12],['real/equipment-set.png',t.prog13],['real/eye-tools.jpg',lang === 'ar' ? '14. القياسات البصرية الصحيحة للمارسين' : '14. Correct optical measurements for practitioners'],['real/optometry-equipment.jpeg',lang === 'ar' ? '15. أدوات القياس البصرية للمارسين' : '15. Optical measurement tools for practitioners']
+      ].map(([icon,title]) => `<article class="og-program-card"><img src="assets/${icon}" alt="صورة حقيقية لبيئة التدريب البصري" loading="lazy" /><div><span class="og-program-icon"><img src="assets/${icon}" alt="" loading="lazy" /></span><h3 class="og-heading">${title}</h3></div></article>`).join('')}
+    </div>
+  </div>
+
+  <!-- ===== EQUIPMENT ===== -->
+  <div style="max-width:1220px; margin:0 auto; padding:80px 24px 20px;">
+    <div style="text-align:center; max-width:700px; margin:0 auto 40px;">
+      <div style="color:#f5c451; font-weight:800; font-size:13px; margin-bottom:10px;">${t.equipKicker}</div>
+      <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f4f7fb; margin:0 0 14px;">${t.equipTitle}</h2>
+      <p style="color:#b7c4d8; font-size:15px; line-height:1.9; margin:0;">${t.equipDesc}</p>
+    </div>
+    <div class="og-equipment-grid">
+      ${[
+        ['Lensmeter','assets/real/eye-tools.jpg'],['Auto Refraction','assets/real/optometry-equipment.jpeg'],['Retinoscope','assets/real/slit-lamp.jpg'],['Slit Lamp','assets/real/slit-lamp.jpg'],['Non-Contact / Air-Puff Tonometer','assets/real/fundus-camera.webp'],['OCT','assets/real/fundus-camera.webp'],['Fundus Photography','assets/real/fundus-clinic.jpg'],['Specular Microscope','assets/real/slit-lamp.jpg'],['Schwind MR39','assets/real/equipment-set.png'],['Pentacam','assets/real/optometry-equipment.jpeg'],['IOL Master','assets/real/equipment-set.png'],['A-Scan & B-Scan','assets/real/fundus-camera.webp'],['Visual Field','assets/real/eye-tools.jpg'],['IPL','assets/real/optometry-equipment.jpeg'],['Dry Eye Diagnosis','assets/real/slit-lamp.jpg']
+      ].map(([name,img]) => `<article class="og-equipment-card"><img src="${img}" alt="صورة حقيقية لجهاز ${name}" loading="lazy" /><div><h3 class="og-heading">${name}</h3><p>${lang === 'ar' ? 'تدريب نظري على الاستخدام والقراءة الصحيحة.' : 'Theoretical training on use and correct interpretation.'}</p></div></article>`).join('')}
+    </div>
+  </div>
+
+  <!-- ===== FOUNDER ===== -->
+  <div style="max-width:1220px; margin:90px auto 0; padding:0 24px;">
+    <div style="background:linear-gradient(135deg, rgba(20,184,166,0.08), rgba(124,58,237,0.06)); border:1px solid rgba(148,178,214,0.16); border-radius:26px; padding:48px; display:flex; gap:44px; align-items:center; flex-wrap:wrap;" class="og-stack-mobile">
+      <div style="flex:1 1 380px; min-width:260px;">
+        <div style="color:${accent}; font-weight:800; font-size:13px; letter-spacing:.4px; margin-bottom:10px;">${t.founderKicker}</div>
+        <h3 class="og-heading" style="font-size:26px; font-weight:800; color:#f4f7fb; margin:0 0 6px;">${t.founderName}</h3>
+        <div style="font-size:13.5px; color:#7d93b3; font-weight:600; margin-bottom:16px;">${t.founderRole}</div>
+        <p style="font-size:15px; color:#aebcd4; line-height:1.9; margin:0;">${t.founderBio}</p>
+      </div>
+      <div style="flex:1 1 340px; min-width:280px;">
+        <div style="position:relative; border-radius:18px; overflow:hidden; aspect-ratio:16/9; background:linear-gradient(155deg,#0c1730,#0a1122 60%); border:1px solid rgba(148,178,214,0.18); box-shadow:0 30px 70px -20px rgba(0,0,0,0.6);">
+          <div style="position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 40%, rgba(45,212,191,0.16), transparent 70%);"></div>
+          <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
+            <div class="og-play" style="display:flex; flex-direction:column; align-items:center; gap:14px; cursor:pointer;">
+              <div class="og-play-circle" style="width:66px; height:66px; border-radius:50%; background:rgba(255,255,255,0.08); border:1.5px solid rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#f4f7fb"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span style="font-size:13px; color:#c6d3e8; font-weight:600;">${t.videoSoon}</span>
+            </div>
+          </div>
+          <div style="position:absolute; bottom:14px; inset-inline-start:16px; display:flex; align-items:center; gap:8px; background:rgba(6,11,24,0.6); border:1px solid rgba(255,255,255,0.12); padding:6px 12px; border-radius:999px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#f5c451;" class="og-star"></span>
+            <span style="font-size:11.5px; color:#dbe4f2; font-weight:600;">${t.videoBadge}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FINAL CTA ===== -->
+  <div style="max-width:1220px; margin:96px auto 0; padding:0 24px 100px;">
+    <div style="position:relative; border-radius:28px; overflow:hidden; padding:64px 40px; text-align:center; background:linear-gradient(155deg,#0c1730,#081123 60%); border:1px solid rgba(45,212,191,0.25);">
+      <div style="position:absolute; inset:0; background: radial-gradient(50% 80% at 50% 0%, rgba(45,212,191,0.16), transparent 70%);"></div>
+      <div style="position:relative;">
+        <h2 class="og-heading" style="font-size:30px; font-weight:800; color:#f7f9fc; margin:0 0 16px;">${t.finalTitle}</h2>
+        <p style="color:#aebcd4; font-size:15.5px; max-width:480px; margin:0 auto 30px; line-height:1.8;">${t.finalDesc}</p>
+        <a href="#signup" onclick="event.preventDefault();openSignup('Telegram')" class="og-btn" style="background:linear-gradient(135deg,${accent},#0d9488); color:#04211d; border-radius:12px; padding:16px 34px; font-size:15.5px; font-weight:800; display:inline-flex; align-items:center; gap:8px; box-shadow:0 18px 40px -14px rgba(20,184,166,0.55);">
+          ${t.finalCta}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <div style="border-top:1px solid rgba(148,178,214,0.12); padding:32px 24px;">
+    <div style="max-width:1220px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img src="assets/logo_nav.png" alt="Optics Gate" style="width:36px; height:36px; object-fit:contain; opacity:.85;" />
+        <span style="font-size:13px; color:#7d93b3;">${t.footerRights}</span>
+      </div>
+      <div style="font-size:12.5px; color:#5c6f8c;">${t.footerTag}</div>
+    </div>
+  </div>
+
+
+  <div id="signup-modal" class="og-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="signup-title" onclick="if(event.target===this)closeSignup()">
+    <div class="og-modal-card" dir="${t.dir}">
+      <button class="og-modal-close" type="button" aria-label="${lang==='ar'?'إغلاق':'Close'}" onclick="closeSignup()">×</button>
+      <div style="color:#2dd4bf;font-weight:800;font-size:13px;margin-bottom:10px;">${lang==='ar'?'افتتاح تجريبي':'Beta opening'}</div>
+      <h2 id="signup-title" class="og-heading" style="font-size:27px;color:#f7f9fc;margin:0 0 12px;">${lang==='ar'?'شكرًا لإهتمامك':'Thank you for your interest'}</h2>
+      <p style="color:#b7c4d8;line-height:1.9;margin:0;">${lang==='ar'?'وهذا افتتاح تجريبي. سجل بياناتك وكن أول المدعوين في افتتاح لبوابة البصريات.':'This is a beta opening. Register your details and be among the first invited to the Optics Gate opening.'}</p>
+      <form class="og-form" onsubmit="handleSignupSubmit(event)">
+        <label>${lang==='ar'?'الاسم':'Name'}<input id="signup-name" name="name" type="text" autocomplete="name" required /></label>
+        <label>${lang==='ar'?'البريد الإلكتروني':'Email'}<input name="email" type="email" autocomplete="email" required /></label>
+        <label>${lang==='ar'?'الهاتف النقال':'Mobile phone'}<input name="phone" type="tel" inputmode="tel" autocomplete="tel" required /></label>
+        <input id="signup-source" name="source" type="hidden" value="landing-page" />
+        <p class="og-form-note">${lang==='ar'?'البريد الإلكتروني والهاتف النقال حقول إلزامية لإتمام التسجيل.':'Email and mobile phone are required to complete registration.'}</p>
+        <div id="signup-status" class="og-form-status" role="status" aria-live="polite"></div>
+        <button type="submit">${lang==='ar'?'سجل اهتمامي':'Register my interest'}</button>
+      </form>
+    </div>
+  </div>
+
+</div>`;
+  activateInteractiveItems();
+}
+
+render();
+</script>
+</body>
+</html>

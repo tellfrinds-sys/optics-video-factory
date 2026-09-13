@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.1",
+  "brand_ar": "منصة بوابة البصريات",
+  "brand_en": "OpticsGate",
+  "slogan_ar": "معًا لبصريات أفضل",
+  "presenter": "مدرب البصريات محمد سعيد",
+  "brand_logo": {
+    "status": "APPROVED_PERMANENT",
+    "approved_by": "محمد سعيد",
+    "approved_on": "2026-08-21",
+    "always_use": true,
+    "primary_static": "assets/brand/optics_gate_logo_lashes_only.png",
+    "gif_variant": "assets/brand/optics_gate_blink_final.gif",
+    "gif_detected_as_animated": false,
+    "gif_frame_count": 1,
+    "source_files_preserved_without_modification": true,
+    "replaces": [
+      "شعار Optic Master Academy القديم",
+      "رمز الدوائر التجريبي",
+      "الشعار منخفض الدقة المستخرج من HeyGen"
+    ],
+    "usage_rule": "يظهر شعار Optics Gate المعتمد في جميع الفيديوهات والشرائح والواجهات والمواد الجديدة. تستخدم نسخة PNG للإنتاج الثابت، ويحفظ ملف GIF كما ورد من المستخدم. لا يُستبدل أو يعاد تصميمه دون اعتماد صريح جديد من محمد سعيد."
+  },
+  "avatar_policy": {
+    "animated_avatar": false,
+    "face_animation": false,
+    "portrait_in_video_default": false,
+    "reference_images_only": true,
+    "rule": "تستخدم الصور الخمس لاستخراج الهوية البصرية وتكوين الكادر فقط، ولا يُحرّك الوجه أو يُدرج تلقائيًا في الفيديو."
+  },
+  "palette": {
+    "navy": "#232E3E",
+    "deep_navy": "#162235",
+    "glass_teal": "#467374",
+    "soft_sky": "#D4E6E7",
+    "warm_taupe": "#8F7D6C",
+    "ivory": "#F6F3EE",
+    "charcoal": "#2E2B28",
+    "white": "#FFFFFF",
+    "warning": "#7A3E3E"
+  },
+  "typography": {
+    "arabic_family": "DejaVu Sans",
+    "title_weight": "bold",
+    "body_weight": "regular",
+    "minimum_title_px_1080p": 54,
+    "minimum_body_px_1080p": 36
+  },
+  "composition": {
+    "aspect_ratio": "16:9",
+    "resolution": "1920x1080",
+    "camera_language": "مركزي، هادئ، في مستوى العين، بلا مبالغة بصرية",
+    "preferred_backgrounds": [
+      "مختبر بصريات نظيف للمحتوى العلمي والأجهزة",
+      "مكتبة راقية للمفاهيم النظرية والمراجع",
+      "مكتب زجاجي هادئ للقيادة والتطوير المهني",
+      "خلفية محايدة دافئة للمقدمات والخلاصات"
+    ],
+    "avoid": [
+      "الخلفيات المزدحمة",
+      "الحركات السريعة غير الوظيفية",
+      "محاكاة فم أو وجه محمد سعيد",
+      "الألوان النيونية أو الطابع الترفيهي"
+    ]
+  },
+  "reference_images": [
+    {"file": "presenter_navy_neutral.png", "use": "مرجع الكحلي والخلفية المحايدة"},
+    {"file": "presenter_navy_city.png", "use": "مرجع المكتب الزجاجي والاحتراف"},
+    {"file": "presenter_gray_library.png", "use": "مرجع المكتبة والمحتوى النظري"},
+    {"file": "presenter_gray_city.png", "use": "مرجع الفحمي والأزرق الزجاجي"},
+    {"file": "presenter_white_columns.png", "use": "مرجع العاجي والإضاءة الهادئة"}
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.3",
+  "factory_name": "مصنع فيديوهات منصة بوابة البصريات",
+  "private_single_user": true,
+  "commercial_service": false,
+  "brand_identity": {
+    "status": "APPROVED_PERMANENT",
+    "approved_on": "2026-08-21",
+    "always_use": true,
+    "static_logo": "assets/brand/optics_gate_logo_lashes_only.png",
+    "gif_logo": "assets/brand/optics_gate_blink_final.gif",
+    "replacement_requires_explicit_human_approval": true
+  },
+  "curriculum_baseline": {
+    "doors": 20,
+    "courses": 40,
+    "chapters": 80,
+    "lessons": 355,
+    "planned_videos": 355,
+    "approvals": 2485,
+    "questions": 60,
+    "scientific_sources": 32
+  },
+  "integrations": {
+    "supabase": "مخطط للاستيراد بعد الاتصال المصرح به",
+    "n8n": "مخطط للتزامن والتنفيذ بعد اعتماد النسخة التجريبية",
+    "sync_direction": "bidirectional",
+    "conflict_quarantine": true,
+    "hard_delete_propagation": false,
+    "daily_health_backup_riyadh": "03:30"
+  },
+  "hybrid_video_path": {
+    "officially_approved": true,
+    "approved_on": "2026-08-21",
+    "avatar_provider": "HeyGen Digital Twin",
+    "avatar_scope": "المقدمة والخاتمة فقط",
+    "avatar_total_max_seconds_per_video": 30,
+    "factory_scope": "باقي الفيديو: الصوت والشرائح والرسوم والمونتاج والمصادر",
+    "approved_voice": {
+      "display_name": "Mohamed Saeed – Egyptian Academy Voice",
+      "engine": "Cartesia",
+      "language": "ar-EG",
+      "dialect": "اللهجة المصرية الطبيعية",
+      "approved_by": "محمد سعيد",
+      "approved_on": "2026-08-21",
+      "voice_match_status": "APPROVED",
+      "dialect_match_status": "APPROVED",
+      "automatic_fallback_allowed": false,
+      "on_engine_unavailable": "STOP_FOR_HUMAN_REVIEW",
+      "prohibited_automatic_fallbacks": ["ElevenLabs V3", "أي صوت عام أو مخزني"]
+    },
+    "master_segments": {
+      "render_once": true,
+      "reuse_across_all_videos": true,
+      "planned_video_count": 355,
+      "preparation_status": "READY_FOR_HEYGEN_NOT_FINAL_APPROVED",
+      "intro_script_version": 2,
+      "intro_script_approved_on": "2026-08-21",
+      "intro_package": "outputs/heygen_master_segments/OPTICSGATE_INTRO_MASTER_HEYGEN.zip",
+      "outro_package": "outputs/heygen_master_segments/OPTICSGATE_OUTRO_MASTER_HEYGEN.zip",
+      "target_seconds_each": 14.7,
+      "hard_max_seconds_each": 15.0,
+      "final_video_approval_required": true,
+      "regenerate_only_when": [
+        "تغيير نص المقدمة أو الخاتمة المعتمد",
+        "تغيير الهوية أو المظهر المعتمد",
+        "وجود عيب فني يستلزم إعادة الإنتاج"
+      ],
+      "dynamic_avatar_per_lesson": false
+    },
+    "heygen_creator_reference": {
+      "monthly_credits": 600,
+      "avatar_iii_credits_per_minute": 3,
+      "avatar_iv_v_credits_per_minute": 20,
+      "master_intro_outro_credits_avatar_iv_v": 10,
+      "repeated_355_times_credits_avatar_iv_v": 3550,
+      "repeated_355_times_creator_months": 6
+    }
+  },
+  "render": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 25,
+    "preview_max_seconds_per_scene": 5,
+    "final_renderer": "FFmpeg/Remotion adapter",
+    "preview_renderer": "Pillow + FFmpeg"
+  }
+}

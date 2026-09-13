@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "language": "العربية باللهجة المصرية المبسطة، بجمل طبيعية غير مثقلة بالمصطلحات",
+  "delivery": "هادئ، أبطأ قليلًا، واضح، عملي، وغير مبالغ",
+  "music": false,
+  "sfx": "مؤثرات خفيفة ووظيفية فقط، ولا توضع تحت كلام طبي مهم",
+  "target_duration_minutes": {"min": 8, "max": 10},
+  "opening": "السلام عليكم ورحمة الله وبركاته. أهلًا بيكم في منصة بوابة البصريات. معاكم مدرب البصريات محمد سعيد. هنا بنقدّم معلومة علمية موثوقة علميًا وببساطة، والمصادر أسفل الفيديو. معًا لبصريات أفضل... يلا نبدأ.",
+  "opening_version": 2,
+  "opening_approved_on": "2026-08-21",
+  "closing": "وبكده نكون وصلنا لنهاية الفيديو. لو عندكم أي سؤال، اكتبوه في التعليقات، وماتنسوش تتابعوا منصة بوابة البصريات. كان معكم مدرب البصريات محمد سعيد. معًا لبصريات أفضل. والسلام عليكم ورحمة الله وبركاته.",
+  "avatar_segments": {
+    "provider": "HeyGen Digital Twin",
+    "voice_engine": "Cartesia",
+    "voice_display_name": "Mohamed Saeed – Egyptian Academy Voice",
+    "voice_fallback_allowed": false,
+    "scope": "المقدمة والخاتمة فقط",
+    "total_max_seconds": 30,
+    "reuse_fixed_master_segments": true,
+    "regenerate_per_lesson": false
+  },
+  "public_disclaimer": "هذا المحتوى للتثقيف فقط، ولا يغني عن فحص طبيب أو اختصاصي عيون.",
+  "source_notice": "المصادر العلمية أسفل الفيديو.",
+  "organization_translation_rule": "عند ذكر جهة أجنبية يكتب تعريفها العربي؛ مثال: FDA - هيئة الغذاء والدواء الأمريكية.",
+  "required_structure": ["فكرة", "تفسير", "توصية عملية"],
+  "lesson_content_flow": ["الموضوع الأول", "الموضوع الثاني", "الموضوع الثالث المدمج", "السكريبتات الثلاثة"],
+  "human_gates": ["SCRIPT_SCIENTIFIC", "FINAL_VIDEO"],
+  "auto_publish": false,
+  "overwrite_approved_versions": false,
+  "partial_rerender_default": true
+}

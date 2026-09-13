@@ -17,6 +17,8 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import gemini_helpers
+import image_providers
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -766,6 +768,7 @@ def _normalize_image_bytes(
     if image.mode not in ("RGB", "RGBA"):
         image = image.convert("RGB")
     if size:
+        size = (max(2, size[0] - (size[0] % 2)), max(2, size[1] - (size[1] % 2)))
         image = _fit_cover(image, size)
     else:
         w, h = image.size
@@ -779,6 +782,235 @@ def _normalize_image_bytes(
     image.save(path, "PNG", optimize=True)
 
 
+def _new_render(payload: dict) -> dict:
+    """المحرّك السردي الجديد (narrated_render)."""
+    import narrated_render
+    return narrated_render.render_narrated(payload)
+
+
+def _notify_user(text, lesson_uid=None):
+    import json as _j, urllib.request
+    base = os.environ.get("N8N_BASE", "http://127.0.0.1:5678")
+    try:
+        urllib.request.urlopen(urllib.request.Request(
+            base + "/webhook/notify-user",
+            data=_j.dumps({"text": text, "lesson_uid": lesson_uid}).encode(),
+            headers={"Content-Type": "application/json"}), timeout=15).read()
+    except Exception as e:
+        print("[_notify_user] FAILED:", str(e)[:300], flush=True)
+
+
+_MSG_BAD = '⚠️ تعذّر قراءة السيناريو المعدّل — تأكد من سطر «العنوان: ...» و«〔مشهد N〕 ...» وابعته تاني.'
+_MSG_START = '🎬 استلمت السيناريو المعدّل (%d مشهد) وبدأ إنتاج الفيديو. متوقع خلال ~%d دقيقة، وهيوصلك بطاقة مراجعة أول ما يخلص.'
+_MSG_ERR = '⚠️ تعذّر بدء الإنتاج تلقائيًا: '
+
+
+def _apply_script(payload: dict) -> dict:
+    """يستقبل السيناريو المعدّل (نصًّا، وربما مقسومًا لأجزاء) ويبدأ الإنتاج بلا إعادة توليد."""
+    import sys as _s
+    _s.path.insert(0, "/root/video-factory/pipeline")
+    import agents, prepare_lesson, json as _j, urllib.request, os as _o, time as _t, threading, pathlib
+    lu = int(payload.get("lesson_uid") or 100002)
+    text = str(payload.get("script_text") or "")
+    sd = pathlib.Path("/root/video-factory/outputs/_status")
+    sd.mkdir(parents=True, exist_ok=True)
+    buf = sd / ("paste_%d.txt" % lu)
+    tick = sd / ("paste_%d.tick" % lu)
+    done = sd / ("paste_%d.done" % lu)
+    if done.exists() and (_t.time() - done.stat().st_mtime) > 1800:
+        done.unlink(missing_ok=True)
+    with open(buf, "a", encoding="utf-8") as f:
+        f.write(text.rstrip() + "\n")
+    marker = "%.6f" % _t.time()
+    tick.write_text(marker)
+
+    def _settle():
+        _t.sleep(16)
+        try:
+            if tick.read_text().strip() != marker:
+                return
+        except Exception:
+            return
+        if done.exists():
+            return
+        done.write_text(str(_t.time()))
+        try:
+            full = buf.read_text(encoding="utf-8")
+        except Exception:
+            done.unlink(missing_ok=True); return
+        L = prepare_lesson._fetch_lesson(lu)
+        base = {"lesson_code": L["lesson_code"], "video_uid": L["video_uid"], "title": L["title_ar"]}
+        try:
+            _k = _o.environ["SUPABASE_SERVICE_KEY"]; _u = _o.environ["SUPABASE_URL"]
+            _q = (_u + "/rest/v1/content_outputs?lesson_uid=eq.%d&stage_code=eq.SCRIPT_FINAL"
+                  "&order=revision_no.desc&limit=1&select=output_text") % lu
+            _rows = _j.loads(urllib.request.urlopen(urllib.request.Request(
+                _q, headers={"apikey": _k, "Authorization": "Bearer " + _k}), timeout=20).read())
+            if _rows:
+                _prev = _j.loads(_rows[0]["output_text"]).get("final_script") or {}
+                if _prev.get("scenes"):
+                    base["scenes"] = _prev["scenes"]
+        except Exception:
+            pass
+        fs = agents.parse_script_text(full, base)
+        if not fs.get("scenes"):
+            _notify_user(_MSG_BAD, lu)
+            buf.unlink(missing_ok=True); done.unlink(missing_ok=True); return
+        buf.unlink(missing_ok=True)
+        fs["video_uid"] = L["video_uid"]; fs["lesson_code"] = L["lesson_code"]
+        lint = agents.dialect_lint(fs["scenes"])
+        ot = _j.dumps({"final_script": fs, "status": "PASS", "source": "human_edited",
+                       "dialect_lint": lint}, ensure_ascii=False)
+        _url = _o.environ["SUPABASE_URL"] + "/rest/v1/content_outputs"
+        _key = _o.environ["SUPABASE_SERVICE_KEY"]
+        urllib.request.urlopen(urllib.request.Request(_url, data=_j.dumps({
+            "lesson_uid": lu, "stage_code": "SCRIPT_FINAL", "prompt_binding_uid": "820006",
+            "revision_no": int(_t.time()), "output_text": ot, "output_hash": "human",
+            "model_used": "human_edited", "approval_status": "approved",
+        }).encode(), method="POST", headers={"apikey": _key, "Authorization": "Bearer " + _key,
+                                             "Content-Type": "application/json"}), timeout=30).read()
+        n = len(fs["scenes"]); eta = max(8, n + 6)
+        _notify_user(_MSG_START % (n, eta), lu)
+        try:
+            import produce_lesson as _pl
+            _pl.produce_async({"video_uid": L["video_uid"], "lesson_uid": lu,
+                               "lesson_code": L["lesson_code"], "scenes": fs["scenes"],
+                               "title": L["title_ar"], "bookend_set": "V3"})
+        except Exception as e:
+            _notify_user(_MSG_ERR + str(e)[:120], lu)
+        _t.sleep(8)
+        done.unlink(missing_ok=True)
+
+    threading.Thread(target=_settle, daemon=True).start()
+    return {"status": "buffering", "lesson_uid": lu}
+
+
+
+def _agent_chat(payload: dict) -> dict:
+    """المستخدم بيدردش مع وكيل المراجعة لضبط السيناريو ثم يقول «اعتمد» فيبدأ الإنتاج."""
+    import sys as _s
+    _s.path.insert(0, "/root/video-factory/pipeline")
+    import agents, prepare_lesson, produce_lesson, json as _j, os as _o, time as _t, pathlib, threading
+
+    lu = int(payload.get("lesson_uid") or 100002)
+    msg = str(payload.get("message") or "").strip()
+    sd = pathlib.Path("/root/video-factory/outputs/_status")
+    sd.mkdir(parents=True, exist_ok=True)
+    chat_f = sd / ("chat_%d.json" % lu)
+    draft_f = sd / ("draft_%d.json" % lu)
+
+    L = prepare_lesson._fetch_lesson(lu)
+    # حمّل المسوّدة الحالية: من ملف مسوّدة سابق، وإلا من آخر SCRIPT_FINAL
+    fs = None
+    try:
+        fs = _j.loads(draft_f.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    if not fs or not fs.get("scenes"):
+        try:
+            _k = _o.environ["SUPABASE_SERVICE_KEY"]; _u = _o.environ["SUPABASE_URL"]
+            _q = (_u + "/rest/v1/content_outputs?lesson_uid=eq.%d&stage_code=eq.SCRIPT_FINAL"
+                  "&order=revision_no.desc&limit=1&select=output_text") % lu
+            import urllib.request
+            rows = _j.loads(urllib.request.urlopen(urllib.request.Request(
+                _q, headers={"apikey": _k, "Authorization": "Bearer " + _k}), timeout=20).read())
+            fs = _j.loads(rows[0]["output_text"]).get("final_script") if rows else None
+        except Exception:
+            fs = None
+    if not fs or not fs.get("scenes"):
+        _notify_user("مفيش سيناريو محفوظ للدرس ده أراجعه معاك.", lu)
+        return {"status": "no_script"}
+
+    try:
+        history = _j.loads(chat_f.read_text(encoding="utf-8"))
+    except Exception:
+        history = []
+
+    res = agents.chat_edit(fs, {"lesson_uid": lu, "title_ar": L["title_ar"]}, msg, history)
+
+    # طبّق التعديلات على المسوّدة
+    if res.get("replace_all_scenes"):
+        fs["scenes"] = res["replace_all_scenes"]
+    for p in (res.get("scene_patches") or []):
+        try:
+            i = int(p["scene_no"]) - 1
+            if 0 <= i < len(fs["scenes"]) and p.get("new"):
+                fs["scenes"][i][p.get("field") or "narration"] = p["new"]
+        except Exception:
+            pass
+    fs["video_uid"] = L["video_uid"]; fs["lesson_code"] = L["lesson_code"]; fs["title"] = L["title_ar"]
+    draft_f.write_text(_j.dumps(fs, ensure_ascii=False), encoding="utf-8")
+
+    history.append({"role": "user", "text": msg})
+    history.append({"role": "agent", "text": res.get("reply_ar", "")})
+    chat_f.write_text(_j.dumps(history[-20:], ensure_ascii=False), encoding="utf-8")
+
+    reply = res.get("reply_ar", "تمام.")
+
+    if res.get("ready_to_produce"):
+        # اكتب SCRIPT_FINAL معتمد وابدأ الإنتاج
+        try:
+            _k = _o.environ["SUPABASE_SERVICE_KEY"]; _u = _o.environ["SUPABASE_URL"]
+            import urllib.request
+            ot = _j.dumps({"final_script": fs, "status": "PASS", "source": "agent_chat"}, ensure_ascii=False)
+            urllib.request.urlopen(urllib.request.Request(
+                _u + "/rest/v1/content_outputs", data=_j.dumps({
+                    "lesson_uid": lu, "stage_code": "SCRIPT_FINAL", "prompt_binding_uid": "820006",
+                    "revision_no": int(_t.time()), "output_text": ot, "output_hash": "agentchat",
+                    "model_used": "agent_chat", "approval_status": "approved"}).encode(),
+                method="POST", headers={"apikey": _k, "Authorization": "Bearer " + _k,
+                                        "Content-Type": "application/json", "Prefer": "return=minimal"}),
+                timeout=30).read()
+        except Exception as e:
+            _notify_user("تعذّر حفظ السيناريو: %s" % str(e)[:120], lu)
+            return {"status": "save_failed"}
+        chat_f.unlink(missing_ok=True); draft_f.unlink(missing_ok=True)
+        try:
+            produce_lesson.produce_async({"video_uid": L["video_uid"], "lesson_uid": lu,
+                                          "lesson_code": L["lesson_code"], "scenes": fs["scenes"],
+                                          "title": L["title_ar"], "bookend_set": "V3"})
+        except Exception as e:
+            _notify_user("تعذّر بدء الإنتاج: %s" % str(e)[:120], lu)
+        reply += "\n\n\U0001f3ac تمام — بدأت إنتاج الفيديو. هيوصلك أول ما يخلص."
+
+    _notify_user("\U0001f4ac " + reply, lu)
+    return {"status": "ok", "ready": bool(res.get("ready_to_produce")),
+            "patches": len(res.get("scene_patches") or [])}
+
+def _prepare_lesson(payload: dict) -> dict:
+    """كتابة السيناريو + مراجعته + بطاقة اعتماد على تليجرام (بلا إنتاج فيديو)."""
+    import sys as _s
+    _s.path.insert(0, "/root/video-factory/pipeline")
+    import prepare_lesson
+    import threading
+    lu = int(payload.get("lesson_uid") or 100002)
+    _notes = str(payload.get("notes") or "")
+
+    def _w():
+        try:
+            prepare_lesson.prepare({"lesson_uid": lu, "notes": _notes})
+        except Exception as e:
+            import traceback, json as _j
+            (prepare_lesson.STATUS_DIR / ("script_%s.json" % lu)).write_text(
+                _j.dumps({"status": "error", "detail": str(e),
+                          "trace": traceback.format_exc()[-1500:]}, ensure_ascii=False))
+    threading.Thread(target=_w, daemon=True).start()
+    return {"status": "preparing", "lesson_uid": lu}
+
+
+def _produce_lesson(payload: dict) -> dict:
+    """رندر + بوابة مراجعة + تصدير سحابي."""
+    import produce_lesson
+    if payload.get("sync"):
+        return produce_lesson.produce_sync(payload)
+    return produce_lesson.produce_async(payload)
+
+
+def _produce_status(uid: int) -> dict:
+    import produce_lesson
+    return produce_lesson.produce_status(int(uid))
+
+
 def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
     video_uid = payload.get("video_uid")
     scenes_in = payload.get("scenes") or []
@@ -786,82 +1018,84 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
         raise FactoryError("video_uid و scenes مطلوبين", 400)
     if not shutil.which("ffmpeg"):
         raise FactoryError("FFmpeg غير مثبت", 501)
-    render_cfg = config()["factory"]["render"]
-    target_size = (int(render_cfg["width"]), int(render_cfg["height"]))
-    fps = int(render_cfg.get("fps", 25))
     out_dir = OUTPUTS_DIR / f"narrated_{video_uid}"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    narrations = [str(s.get("narration", "")) for s in scenes_in]
+    combined_text = ' <break time="0.6s"/> '.join(n.strip() for n in narrations if n.strip())
+
+    audio_path = out_dir / "narration_full.mp3"
+    if payload.get("audio_url"):
+        with urllib.request.urlopen(payload["audio_url"], timeout=60) as resp:
+            audio_path.write_bytes(resp.read())
+        word_timestamps = payload.get("word_timestamps") or []
+    else:
+        audio_bytes, word_timestamps = gemini_helpers.heygen_tts_continuous(combined_text)
+        audio_path.write_bytes(audio_bytes)
+
+    scene_slices = gemini_helpers.slice_timestamps_by_scene(narrations, word_timestamps)
+
     clip_paths: list[Path] = []
     total = len(scenes_in)
-    for i, raw in enumerate(scenes_in, 1):
+    for i, (raw, sl) in enumerate(zip(scenes_in, scene_slices), 1):
         scene_no = raw.get("scene_no") or raw.get("scene no") or i
-        narration = str(raw.get("narration", ""))
         on_screen = str(raw.get("on_screen_text") or raw.get("on screen text") or "")
-        visual = str(raw.get("visual_direction") or raw.get("visual direction") or "")
         source_codes = raw.get("source_codes") or raw.get("source codes") or ""
         visual_en = raw.get("visual_prompt_en") or "human eye anatomy cross section diagram"
-        duration_seconds = float(raw.get("duration_seconds") or raw.get("duration seconds") or 30)
         scene = {
-            "type": "content",
-            "title": f"مشهد {scene_no}",
-            "on_screen": on_screen,
-            "visual_brief": visual_en,
+            "type": "content", "title": f"مشهد {scene_no}",
+            "on_screen": on_screen, "visual_brief": visual_en,
             "source_ids": [source_codes] if source_codes else [],
         }
         frame_path = out_dir / f"S{int(scene_no):02d}.png"
         if raw.get("image_url"):
             with urllib.request.urlopen(raw["image_url"], timeout=60) as resp:
-                _normalize_image_bytes(resp.read(), frame_path, target_size, on_screen, source_codes)
+                raw_image_bytes = resp.read()
         elif raw.get("image_base64"):
             import base64 as b64lib
-            _normalize_image_bytes(b64lib.b64decode(raw["image_base64"]), frame_path, target_size, on_screen, source_codes)
+            raw_image_bytes = b64lib.b64decode(raw["image_base64"])
         else:
-            render_frame_ai(scene, frame_path, i, total)
-        audio_path = out_dir / f"S{int(scene_no):02d}.mp3"
-        if raw.get("audio_url"):
-            with urllib.request.urlopen(raw["audio_url"], timeout=60) as resp:
-                audio_path.write_bytes(resp.read())
-        elif raw.get("audio_base64"):
-            import base64 as b64lib
-            audio_path.write_bytes(b64lib.b64decode(raw["audio_base64"]))
-        else:
-            audio_path.write_bytes(heygen_tts(narration))
+            raw_image_bytes = image_providers.generate_image(visual_en)
+        _normalize_image_bytes(raw_image_bytes, frame_path, size=(1920, 1080), on_screen_text=on_screen, source_codes=source_codes)
+
+        duration = max(sl["duration"], 0.5)
         clip_path = out_dir / f"S{int(scene_no):02d}.mp4"
-        zoom_frames = max(fps * 2, int((duration_seconds + 2) * fps))
-        filter_complex = (
-            f"[0:v]scale={target_size[0] * 2}:{target_size[1] * 2},"
-            f"zoompan=z='min(zoom+0.0006,1.12)':d={zoom_frames}:s={target_size[0]}x{target_size[1]}:fps={fps},"
-            "format=yuv420p[v]"
-        )
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-            "-loop", "1", "-i", str(frame_path), "-i", str(audio_path),
-            "-filter_complex", filter_complex,
-            "-map", "[v]", "-map", "1:a",
-            "-af", "loudnorm=I=-16:TP=-1.5:LRA=7",
-            "-c:v", "libx264", "-c:a", "aac", "-b:a", "192k",
-            "-pix_fmt", "yuv420p", "-shortest", str(clip_path),
+            "-loop", "1", "-t", f"{duration:.3f}", "-i", str(frame_path),
+            "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p", str(clip_path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0 or not clip_path.exists():
-            raise FactoryError(f"فشل دمج المشهد {scene_no}: {result.stderr[-500:]}", 500)
+            raise FactoryError(f"فشل بناء مشهد الفيديو {scene_no}: {result.stderr[-500:]}", 500)
         clip_paths.append(clip_path)
+
     concat_file = out_dir / "concat.txt"
     concat_file.write_text(
         "\n".join(f"file '{str(p.resolve()).replace(chr(39), chr(39)+chr(92)+chr(39)+chr(39))}'" for p in clip_paths),
         encoding="utf-8",
     )
+    silent_video = out_dir / "silent_video.mp4"
+    cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
+           "-i", str(concat_file), "-c", "copy", str(silent_video)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0 or not silent_video.exists():
+        raise FactoryError(f"فشل دمج مقاطع الصور: {result.stderr[-500:]}", 500)
+
     final_path = out_dir / "final_narrated.mp4"
     cmd = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-f", "concat", "-safe", "0", "-i", str(concat_file),
-        "-c", "copy", str(final_path),
+        "-i", str(silent_video), "-i", str(audio_path),
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=7",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest", str(final_path),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     if result.returncode != 0 or not final_path.exists():
         raise FactoryError(f"فشل الدمج النهائي: {result.stderr[-500:]}", 500)
     relative = "/" + final_path.relative_to(ROOT).as_posix()
-    return {"status": "ok", "video_path": relative, "scenes": total, "video_uid": video_uid}
+    return {"status": "ok", "video_path": relative, "scenes": total, "video_uid": video_uid,
+            "audio_mode": "continuous_single_tts", "image_source": "gemini_with_stability_fallback"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -910,10 +1144,12 @@ class Handler(BaseHTTPRequestHandler):
                 file = _safe_path(ASSETS_DIR, path[len("/assets/"):])
                 if file:
                     return self.send_bytes(200, file.read_bytes(), "image/png")
+            if path.startswith("/api/produce-status/"):
+                return self.send_json(200, _produce_status(path.rsplit("/", 1)[-1]))
             if path.startswith("/outputs/"):
                 file = _safe_path(OUTPUTS_DIR, path[len("/outputs/"):])
                 if file:
-                    mime = "video/mp4" if file.suffix == ".mp4" else "application/json"
+                    mime = {".mp4": "video/mp4", ".txt": "text/plain; charset=utf-8", ".json": "application/json; charset=utf-8"}.get(file.suffix, "application/octet-stream")
                     return self.send_bytes(200, file.read_bytes(), mime)
             return self.send_json(404, {"error": "المسار غير موجود"})
         except FactoryError as exc:
@@ -933,7 +1169,15 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/demo":
                 result = create_demo(db)
             elif path == "/api/render-narrated":
-                result = render_narrated(payload)
+                result = _new_render(payload)
+            elif path == "/api/produce-lesson":
+                result = _produce_lesson(payload)
+            elif path == "/api/prepare-lesson":
+                result = _prepare_lesson(payload)
+            elif path == "/api/apply-script":
+                result = _apply_script(payload)
+            elif path == "/api/agent-chat":
+                result = _agent_chat(payload)
             elif path.startswith("/api/jobs/"):
                 parts = path.strip("/").split("/")
                 if len(parts) != 4:

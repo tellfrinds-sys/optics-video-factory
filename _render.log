@@ -1,0 +1,26 @@
+[scene 1] audio 17.4s
+[scene 1] clip 17.9s -> 272KB
+[scene 2] audio 26.1s
+[scene 2] clip 26.5s -> 314KB
+[scene 3] audio 22.8s
+[scene 3] clip 23.2s -> 276KB
+[scene 4] audio 20.5s
+[scene 4] clip 21.0s -> 275KB
+[scene 5] audio 17.3s
+[scene 5] clip 17.7s -> 260KB
+[scene 6] audio 17.5s
+[scene 6] clip 17.9s -> 220KB
+[scene 7] audio 10.7s
+[scene 7] clip 11.2s -> 168KB
+{
+ "status": "ok",
+ "video_path": "/outputs/narrated_500128/final_narrated.mp4",
+ "scenes": 7,
+ "video_uid": 500128,
+ "body_seconds": 135.38,
+ "final_seconds": 163.14,
+ "tts_speed": 1.0,
+ "bookends": true,
+ "image_source": "programmatic_vector_diagrams",
+ "captions": "burned_ass_dynamic"
+}

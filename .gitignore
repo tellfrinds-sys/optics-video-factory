@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+outputs/
+qaenv/
+xttsenv/
+f5env/
+cartesia_test/output.wav
+rvc_repo/
+tts_models/
+voice_src/

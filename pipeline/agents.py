@@ -14,6 +14,8 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+import tashkeel_qa
+
 ROOT = Path("/root/video-factory")
 PIPE = ROOT / "pipeline"
 STYLE = PIPE / "style_guide.md"
@@ -220,14 +222,28 @@ def _qwen_deep_dialect(scenes):
 
 def review_script(fs: dict, lesson: dict) -> dict:
     scenes = fs.get("scenes", [])
+    # 0) تصحيح تلقائي حتمي (بلا نموذج) لأي كلمة معروفة حرفيًا في قواميس النطق المعتمدة —
+    #    صفر مجازفة لأنه استبدال حرفي مسبق التحقق، مش تخمين.
+    fixed_scenes, auto_fixed = tashkeel_qa.apply_dictionary_fixes(scenes)
+    fs["scenes"] = fixed_scenes
+    scenes = fixed_scenes
     wc = sum(len(s.get("narration", "").split()) for s in scenes)
     g = _gemini_review(fs, lesson)                 # مراجعة تحريرية شاملة (Gemini)
     q = dialect_lint(scenes)                       # مدقّق لهجة حتمي (فوري)
+    t = tashkeel_qa.check_scenes(scenes)           # بوابة تشكيل/نطق حتمية (فورية، كود لا نموذج)
     qd = _qwen_deep_dialect(scenes)                # اختياري
 
     dvi = list(g.get("dialect_violations") or []) + list(q.get("violations") or [])
+    tvi = list(t.get("issues") or [])
+    must_fix = list(g.get("must_fix") or [])
+    if tvi:
+        must_fix = must_fix + [
+            "تشكيل/نطق: \"%s\" ← \"%s\" (مشهد %s)" % (
+                i.get("word", i.get("quote", "")), i.get("expected", i.get("note", "")), i.get("scene"))
+            for i in tvi[:8]]
     verdict = "pass"
-    if str(g.get("verdict", "")).lower() == "fail" or q.get("dialect_ok") is False or dvi:
+    if (str(g.get("verdict", "")).lower() == "fail" or q.get("dialect_ok") is False
+            or dvi or not t.get("tashkeel_ok", True)):
         verdict = "fail"
     rv = {
         "verdict": verdict,
@@ -235,12 +251,15 @@ def review_script(fs: dict, lesson: dict) -> dict:
         "word_count_estimate": g.get("word_count_estimate", wc),
         "coverage_gaps": g.get("coverage_gaps") or [],
         "dialect_violations": dvi,
+        "tashkeel_violations": tvi,
+        "auto_fixed": auto_fixed,
         "science_flags": g.get("science_flags") or [],
         "structure_issues": g.get("structure_issues") or [],
         "visual_issues": g.get("visual_issues") or [],
-        "must_fix": g.get("must_fix") or [],
+        "must_fix": must_fix,
         "learned_rule": g.get("learned_rule") or "",
         "reviewers": {"gemini": g.get("verdict"), "dialect_lint": q.get("dialect_ok"),
+                      "tashkeel_qa": t.get("tashkeel_ok"),
                       "qwen_deep": qd.get("dialect_ok", qd.get("skipped", qd.get("error")))},
     }
     if rv["learned_rule"]:

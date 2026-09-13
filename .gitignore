@@ -10,3 +10,5 @@ tts_models/
 voice_src/
 .env.bak_*
 test_pilot*.py
+pipeline/.env
+assets/generated/

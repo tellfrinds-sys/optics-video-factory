@@ -12,10 +12,15 @@ eye_scene2.py — مُصيّر مشاهد فيديو «العين البشرية
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import json as _json
 import math
 import os
 import re
 import unicodedata
+import urllib.error as _urlerr
+import urllib.request as _urlreq
 from pathlib import Path
 
 _TASHKEEL = re.compile("[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\u0640]")
@@ -33,6 +38,19 @@ ROOT = Path(os.environ.get("OPTICSGATE_FACTORY_ROOT", Path(__file__).resolve().p
 ASSETS = ROOT / "assets"
 EYE_PNG = ASSETS / "anatomy" / "eye_final.png"
 LOGO_PNG = ASSETS / "brand" / "optics_gate_logo_lashes_only.png"
+
+# توليد صور Gemini (للمشاهد غير التشريحية الأساسية — ليس بديلًا عن رسم العين/القرنية المُعايَر)
+GENERATED_DIR = ASSETS / "generated" / "gemini"
+GEMINI_MODEL = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+if not GEMINI_API_KEY:
+    _envf = ROOT / "pipeline" / ".env"
+    if _envf.exists():
+        for _ln in _envf.read_text().splitlines():
+            if _ln.strip().startswith("GEMINI_API_KEY="):
+                GEMINI_API_KEY = _ln.split("=", 1)[1].strip()
+                break
 
 AR_BOLD = "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf"
 AR_REG = "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf"
@@ -81,6 +99,32 @@ def _f(path, size):
     if key not in _FCACHE:
         _FCACHE[key] = ImageFont.truetype(path, size)
     return _FCACHE[key]
+
+
+def _gemini_generate_image(prompt: str, cache_key: str) -> "Path | None":
+    """يولّد صورة توضيحية عبر Gemini ويخزّنها بالكاش على القرص؛ يرجع None عند أي فشل
+    (لا استثناء يُرفَع أبدًا هنا — الاحتياطي الآمن هو رسم العين الافتراضي في render_scene)."""
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+    dest = GENERATED_DIR / f"{cache_key}.png"
+    if dest.exists() and dest.stat().st_size > 1000:
+        return dest
+    if not GEMINI_API_KEY:
+        return None
+    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+           f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
+    body = _json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+    req = _urlreq.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with _urlreq.urlopen(req, timeout=45) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        parts = data["candidates"][0]["content"]["parts"]
+        img_b64 = next(p["inlineData"]["data"] for p in parts if "inlineData" in p)
+        raw = base64.b64decode(img_b64)
+        dest.write_bytes(raw)
+        return dest
+    except Exception as e:
+        print(f"[eye_scene2] Gemini image generation failed: {e}", flush=True)
+        return None
 
 
 def _bg() -> Image.Image:
@@ -268,6 +312,39 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
         _draw_cornea_layers(img, keys)
         _footer(img, code)
         return img
+
+    # رسم عام مُولَّد عبر Gemini — لمشاهد غير تشريحية أساسية (لا تمسّ رسم العين/القرنية المُعايَر)
+    if (scene.get("diagram") == "gemini_custom" and scene.get("visual_prompt")
+            and sc != 1 and scene.get("kind") not in ("title", "outro")):
+        prompt = (str(scene["visual_prompt"]).strip() +
+                  ", simple flat educational illustration, clean plain background, "
+                  "professional optics/medical textbook style, no text, no words, no letters, "
+                  "no labels, no watermark, high detail")
+        cache_key = hashlib.md5(prompt.encode("utf-8")).hexdigest()[:16]
+        gen_path = _gemini_generate_image(prompt, cache_key)
+        if gen_path is not None:
+            try:
+                gi = Image.open(gen_path).convert("RGBA")
+                _header(img, heading, scene.get("term_en") or "")
+                box_w, box_h = 1500, 760
+                gi.thumbnail((box_w, box_h), Image.LANCZOS)
+                gx = (W - gi.width) // 2
+                gy = 180 + (box_h - gi.height) // 2
+                d = ImageDraw.Draw(img, "RGBA")
+                pad = 18
+                d.rounded_rectangle([gx - pad, gy - pad, gx + gi.width + pad, gy + gi.height + pad],
+                                     radius=18, fill=(255, 255, 255, 235), outline=GOLD, width=3)
+                img.paste(gi, (gx, gy), gi)
+                if labels:
+                    ly = gy + gi.height + pad + 46
+                    names = [_plain(n) for (n, _k) in labels]
+                    d.text((W / 2, ly), "،  ".join(names), font=_f(AR_BOLD, 28),
+                           fill=INK, anchor="mm", language="ar")
+                _footer(img, code)
+                return img
+            except Exception as e:
+                print(f"[eye_scene2] failed to composite generated image: {e}", flush=True)
+                # يسقط إلى الرسم الافتراضي أدناه (احتياطي آمن)
 
     # صورة العين
     eye = _eye_img()

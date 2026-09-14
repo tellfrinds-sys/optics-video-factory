@@ -34,6 +34,7 @@ ENV_FILE = ROOT / "pipeline" / ".env"
 
 DRIVE_REMOTE = os.environ.get("DRIVE_REMOTE", "optics_drive:OpticsGate/Videos")
 PUBLIC_BASE = os.environ.get("PUBLIC_BASE", "https://n8n.opticsgate.online")
+N8N_BASE = os.environ.get("N8N_BASE", "http://127.0.0.1:5678")  # اتصال محلي -- لا يعتمد على DNS العام
 
 sys.path.insert(0, str(ROOT))
 
@@ -159,8 +160,8 @@ def _heal_notify(text):
     try:
         import urllib.request, json as _j
         urllib.request.urlopen(urllib.request.Request(
-            "https://n8n.opticsgate.online/webhook/notify-user",
-            data=_j.dumps({"text": text}).encode(),
+            N8N_BASE + "/webhook/notify-user",
+            data=_j.dumps({"text": text}, ensure_ascii=False).encode(),
             headers={"Content-Type": "application/json"}), timeout=15).read()
     except Exception:
         pass
@@ -354,6 +355,19 @@ def produce(payload: dict) -> dict:
         build_lessons_page.build()
     except Exception as _e:
         print('lessons page build skipped:', _e)
+
+    # إشعار تليجرام غير مشروط -- يصل مع كل درس ينتهي، سواء احتاج إصلاحًا ذاتيًا أو لأ
+    drive_ok = bool((result.get("drive") or {}).get("ok"))
+    backup_ok = bool((result.get("backup") or {}).get("ok"))
+    _heal_notify(
+        "\u2705 \u0627\u0644\u062f\u0631\u0633 \u00ab%s\u00bb \u062c\u0627\u0647\u0632 \u0648\u0645\u0646\u0634\u0648\u0631!\n"
+        "\u0627\u0644\u0645\u062f\u0629: %s\u062f\n"
+        "Drive: %s\n"
+        "\u0646\u0633\u062e\u0629 \u0627\u062d\u062a\u064a\u0627\u0637\u064a\u0629 (Supabase Storage): %s\n"
+        "\u0645\u0646\u0634\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639: \u0646\u0639\u0645"
+        % (title, round((result.get("seconds") or 0) / 60, 1),
+           "\u2705 \u062a\u0645" if drive_ok else "\u274c \u0641\u0634\u0644",
+           "\u2705 \u062a\u0645" if backup_ok else "\u274c \u0641\u0634\u0644 (\u0644\u0627 \u064a\u0624\u062b\u0631 -- Drive \u0647\u0648 \u0627\u0644\u0623\u0633\u0627\u0633\u064a)"))
 
     # 4) تنظيف نسخ السيرفر المؤقتة + النهائية (النسخ السحابية باقية)
     _cleanup(d)

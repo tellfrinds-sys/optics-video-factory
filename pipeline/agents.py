@@ -7,6 +7,7 @@ agents.py — كاتب الاسكريبت (Gemini) + وكيل المراجعة �
 from __future__ import annotations
 
 import json
+import json as _json
 import os
 import re
 import time
@@ -25,6 +26,11 @@ REVIEWER_PROMPT = PIPE / "prm_reviewer.txt"
 GEMINI_URL = os.environ.get(
     "GEMINI_URL",
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+# موديل أرخص (gemini-3.5-flash-lite، ~60% أرخص للتوكن) للمهام الضيّقة فقط (تدقيق إملائي) --
+# اقتصاد فعلي بطلب صريح من المسؤول 2026-09-15، بدون المساس بجودة الكتابة/المراجعة الأساسية.
+GEMINI_LITE_URL = os.environ.get(
+    "GEMINI_LITE_URL",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
 OLLAMA = "http://127.0.0.1:11434/api/generate"
 QA_MODEL = os.environ.get("QA_MODEL", "qwen2.5:7b-instruct")
 
@@ -61,7 +67,7 @@ def bump_style_guide(rule: str, tag: str = ""):
 
 
 # ---------------- Gemini: كاتب الاسكريبت ----------------
-def _gemini(system: str, user: str) -> dict:
+def _gemini(system: str, user: str, url: str = None) -> dict:
     _load_env()
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -72,7 +78,7 @@ def _gemini(system: str, user: str) -> dict:
         "generationConfig": {"temperature": 0.4, "responseMimeType": "application/json",
                              "maxOutputTokens": 45000},
     }).encode("utf-8")
-    req = urllib.request.Request(GEMINI_URL, data=body, method="POST",
+    req = urllib.request.Request(url or GEMINI_URL, data=body, method="POST",
                                  headers={"x-goog-api-key": key, "Content-Type": "application/json"})
     d = None
     for _try in range(5):
@@ -193,40 +199,51 @@ def write_script(lesson: dict, extra_notes: str = "") -> dict:
 # قد تصلح شيئًا وتكسر شيئًا آخر في نفس الوقت (كما لوحظ فعليًا: كل إعادة توليد كاملة
 # كانت تصلح خطأ إملائيًا وتُدخل خطأ جديدًا مكانه).
 PROOFREAD_SYSTEM = (
-    "انت مدقق إملائي فقط، مش كاتب أو محرر. مهمتك الوحيدة: تصحيح الأخطاء الإملائية/الطباعية "
-    "الحرفية (حروف ناقصة أو زايدة أو مبدّلة تحوّل الكلمة لكلمة تانية أو كلمة مش موجودة) في نص "
-    "السرد بالعامية المصرية.\n"
+    "انت مدقق إملائي فقط، مش كاتب أو محرر. هتستلم عدة مشاهد (scene_no + narration). مهمتك "
+    "الوحيدة لكل مشهد: تصحيح الأخطاء الإملائية/الطباعية الحرفية (حروف ناقصة أو زايدة أو "
+    "مبدّلة تحوّل الكلمة لكلمة تانية أو كلمة مش موجودة) في نص السرد بالعامية المصرية.\n"
     "ممنوع تمامًا: إعادة الصياغة، تغيير المعنى، تحويل اللهجة لفصحى، حذف أو إضافة جمل، تغيير "
     "طول النص، أو تغيير أي كلمة سليمة إملائيًا حتى لو تقدر تصوغها بشكل أحسن.\n"
-    "أعد فقط JSON: {\"narration\":\"النص كاملًا بعد التصحيح فقط\"}\n"
-    "لو مفيش أي خطأ إملائي، أعد نفس النص حرفيًا بلا أي تغيير."
+    "أعد فقط JSON: {\"scenes\":[{\"scene_no\":N,\"narration\":\"النص كاملًا بعد التصحيح\"}]}\n"
+    "-- بنفس عدد المشاهد المُرسلة بالضبط. لو مفيش أي خطأ إملائي في مشهد، أعد نفس نصّه حرفيًا."
 )
 
 
-def proofread_scenes(scenes: list[dict]) -> list[dict]:
+def proofread_scenes(scenes: list[dict], batch_size: int = 3) -> list[dict]:
     """تدقيق إملائي ضيّق النطاق فقط (خطوة منفصلة عن الكتابة والمراجعة الشاملة) — يصحح
     الأخطاء الطباعية الحرفية فقط بدون إعادة صياغة، حفاظًا على المعنى واللهجة والطول.
-    مشهد واحد لكل نداء (بدل دفعة واحدة كبيرة) لتقليل احتمال كسر تنسيق JSON من الموديل
-    على نصوص طويلة متعددة المشاهد -- خطأ لوحظ فعليًا عند إرسال كل المشاهد دفعة واحدة."""
-    for s in scenes:
-        old = s.get("narration", "")
-        if not old.strip():
-            continue
+    اقتصاد فعلي (2026-09-15، بطلب صريح من المسؤول لتقليل استهلاك الرصيد): دفعات من 3
+    مشاهد لكل نداء (بدل مشهد واحد) + موديل أرخص (GEMINI_LITE_URL) -- دفعة صغيرة كفاية
+    لتفادي كسر JSON اللي كان بيحصل مع كل المشاهد (9-10) دفعة واحدة، لكن أوفر بكتير من
+    نداء منفصل لكل مشهد."""
+    idx = [i for i, s in enumerate(scenes) if (s.get("narration") or "").strip()]
+    for start in range(0, len(idx), batch_size):
+        group = [scenes[i] for i in idx[start:start + batch_size]]
+        payload = {"scenes": [{"scene_no": s.get("scene_no"), "narration": s["narration"]} for s in group]}
         try:
-            out = _gemini(PROOFREAD_SYSTEM, old)
-            new = out.get("narration", "")
+            out = _gemini(PROOFREAD_SYSTEM, _json.dumps(payload, ensure_ascii=False), url=GEMINI_LITE_URL)
         except Exception as e:
-            print(f"[proofread_scenes] مشهد {s.get('scene_no')}: فشل، تم التخطي: {e}", flush=True)
+            nums = [s.get("scene_no") for s in group]
+            print(f"[proofread_scenes] مشاهد {nums}: فشل، تم التخطي: {e}", flush=True)
             continue
-        if not new or not new.strip():
-            continue
-        old_wc, new_wc = len(old.split()), len(new.split())
-        # أمان: ارفض أي "تصحيح" غيّر عدد الكلمات بأكثر من 12% -- على الأغلب إعادة صياغة لا تدقيق
-        if old_wc and abs(new_wc - old_wc) / old_wc > 0.12:
-            print(f"[proofread_scenes] مشهد {s.get('scene_no')}: رُفض (فرق كلمات كبير، يشبه إعادة صياغة)", flush=True)
-            continue
-        s["narration"] = new
-        s["caption"] = _TASH_RE.sub("", new)
+        fixed = {}
+        for x in (out.get("scenes") or []):
+            try:
+                fixed[int(x["scene_no"])] = x.get("narration", "")
+            except Exception:
+                continue
+        for s in group:
+            new = fixed.get(s.get("scene_no"), "")
+            old = s.get("narration", "")
+            if not new or not new.strip():
+                continue
+            old_wc, new_wc = len(old.split()), len(new.split())
+            # أمان: ارفض أي "تصحيح" غيّر عدد الكلمات بأكثر من 12% -- على الأغلب إعادة صياغة لا تدقيق
+            if old_wc and abs(new_wc - old_wc) / old_wc > 0.12:
+                print(f"[proofread_scenes] مشهد {s.get('scene_no')}: رُفض (فرق كلمات كبير)", flush=True)
+                continue
+            s["narration"] = new
+            s["caption"] = _TASH_RE.sub("", new)
     return scenes
 
 

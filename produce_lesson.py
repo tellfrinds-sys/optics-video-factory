@@ -382,7 +382,7 @@ def produce(payload: dict) -> dict:
     try:
         import urllib.request as _u, json as _jj
         _u.urlopen(_u.Request(
-            "https://n8n.opticsgate.online/webhook/video-card",
+            N8N_BASE + "/webhook/video-card",
             data=_jj.dumps({
                 "title": title, "lesson_code": code, "lesson_uid": lesson_uid,
                 "seconds": result.get("seconds"), "qa_verdict": result.get("qa_verdict"),

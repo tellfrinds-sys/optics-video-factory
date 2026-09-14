@@ -103,7 +103,7 @@ def apply_dictionary_fixes(scenes: list[dict]) -> tuple[list[dict], list[dict]]:
     """إصلاح آلي مباشر (بلا نموذج) لأي كلمة موجودة حرفيًا في القواميس المعتمدة —
     صفر مجازفة لأنه استبدال حرفي معروف مسبقًا، مش تخمين. يُرجع (السيناريو المصحَّح, سجل التعديلات)."""
     surf, optics = _dicts()
-    merged = {**optics, **surf, **FUNCTION_WORDS}
+    merged = {**optics, **surf}
     applied = []
     for s in scenes or []:
         text = s.get("narration", "") or ""

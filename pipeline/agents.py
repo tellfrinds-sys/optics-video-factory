@@ -141,6 +141,10 @@ def write_script(lesson: dict, extra_notes: str = "") -> dict:
         sc.setdefault("diagram", fs.get("diagram_default", "eye"))
         if forced and i not in (0, len(fs["scenes"]) - 1) and sc.get("kind") not in ("title", "outro"):
             sc["diagram"] = forced
+        # شبكة أمان حتمية: Gemini بيهمل حقل visual_focus كتير رغم تعليمات البرومبت —
+        # نملأه آليًا من heading/term_en بدل ما نرفض السيناريو كامل ونعيد توليده من الصفر.
+        if not sc.get("visual_focus"):
+            sc["visual_focus"] = sc.get("term_en") or sc.get("heading") or "eye anatomy overview"
     return fs
 
 
@@ -196,6 +200,7 @@ def _gemini_review(fs: dict, lesson: dict) -> dict:
         "عدد المشاهد": len(scenes), "مجموع كلمات السرد": wc,
         "المشاهد": [{"scene_no": s.get("scene_no"), "heading": s.get("heading"),
                      "diagram": s.get("diagram"), "term_en": s.get("term_en"),
+                     "visual_focus": s.get("visual_focus"),
                      "narration": _TASH_RE.sub("", s.get("narration", ""))} for s in scenes],
     }
     return _gemini(sysmsg, "راجع هذا السيناريو وأجب JSON فقط:\n" + json.dumps(body, ensure_ascii=False))

@@ -91,8 +91,16 @@ def _lesson_html(l):
                      % (len(qs), "".join(items)))
     refs = l.get("scientific_refs_ar") or []
     if refs:
+        ritems = []
+        for r in refs:
+            if isinstance(r, dict) and r.get("url"):
+                ritems.append('<li><a href="%s" target="_blank" rel="noopener">%s</a></li>'
+                              % (_esc(r["url"]), _esc(r.get("name") or r["url"])))
+            else:
+                name = r.get("name") if isinstance(r, dict) else r
+                ritems.append("<li>%s</li>" % _esc(name))
         parts.append('<details class="lx-acc"><summary>المصادر العلمية</summary><ul>'
-                     + "".join("<li>%s</li>" % _esc(r) for r in refs) + "</ul></details>")
+                     + "".join(ritems) + "</ul></details>")
     parts.append("</article>")
     return "\n".join(parts)
 

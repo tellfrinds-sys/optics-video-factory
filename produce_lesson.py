@@ -335,13 +335,20 @@ def produce(payload: dict) -> dict:
     result["drive"] = _drive_upload(video, fname)              # أساسية: Google Drive
     result["backup"] = _supabase_upload(video, ascii_name)     # احتياطية: Supabase Storage
     result["archive_server"] = str(ARCHIVE / fname)
-    _patch_lesson(result.get("lesson_uid"), {
+    _lesson_patch = {
         "video_url": (result["drive"] or {}).get("link") or "",
         "video_backup_url": (result["backup"] or {}).get("link") or "",
         "video_duration_seconds": result.get("seconds"),
         "video_qa_verdict": result.get("qa_verdict"),
         "video_published_at": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
-        "video_status": "ready"})
+        "video_status": "ready"}
+    # أهداف الدرس + بنك الأسئلة + المراجع العلمية -- لو المستدعي بعتهم (فس السكريبت
+    # النهائي)، بننقلهم لجدول lessons بدل ما يفضلوا فاضيين (فجوة لوحظت فعليا: مسار
+    # الإنتاج المباشر عبر produce() كان بيتخطى نقل هذه الحقول على عكس prepare_lesson.prepare()).
+    for _f in ("objectives_ar", "question_bank_ar", "scientific_refs_ar"):
+        if payload.get(_f):
+            _lesson_patch[_f] = payload[_f]
+    _patch_lesson(result.get("lesson_uid"), _lesson_patch)
     try:
         import build_lessons_page
         build_lessons_page.build()

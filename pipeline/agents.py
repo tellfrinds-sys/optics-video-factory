@@ -11,6 +11,7 @@ import os
 import re
 import time
 import urllib.request
+import urllib.parse
 import urllib.error
 from pathlib import Path
 
@@ -105,6 +106,43 @@ def _gemini(system: str, user: str) -> dict:
                            % (cand.get("finishReason"), txt[:300]))
 
 
+# روابط محقَّقة يدويًا (بحث فعلي، لا تخمين) لمراجع شائعة الاستخدام في سيناريوهات الدروس --
+# تُفضَّل على رابط البحث العام لو اسم المرجع يحتوي أحد هذه المفاتيح.
+_KNOWN_REF_LINKS = [
+    ("adler", "https://shop.elsevier.com/books/adlers-physiology-of-the-eye/levin/978-0-323-05714-1"),
+    ("elkington", "https://www.wiley.com/en-us/Clinical+Optics%2C+3rd+Edition-p-9780632049899"),
+    ("clinical optics", "https://www.wiley.com/en-us/Clinical+Optics%2C+3rd+Edition-p-9780632049899"),
+    ("snell", "https://onlinelibrary.wiley.com/doi/book/10.1002/9781118690987"),
+    ("khurana", "https://archive.org/details/anatomyphysiolog0000khur"),
+    ("bcsc", "https://store.aao.org/basic-and-clinical-science-course-section-02-fundamentals-and-principles-of-ophthalmology.html"),
+    ("aao", "https://www.aao.org/education"),
+]
+
+
+def _ref_url(name: str) -> str:
+    """رابط حقيقي محقَّق لو المرجع معروف (مطابقة بالاسم)، وإلا رابط بحث Google Scholar
+    حتمي بالكود (بلا أي تخمين من نموذج) -- يضمن رابطًا صحيحًا شغّالًا دايمًا، ولا يحاول
+    توليد رابط دقيق مخترَع لمرجع غير معروف (خطر هلوسة روابط لو تُرك للنموذج)."""
+    low = (name or "").lower()
+    for key, url in _KNOWN_REF_LINKS:
+        if key in low:
+            return url
+    return "https://scholar.google.com/scholar?q=" + urllib.parse.quote(name or "")
+
+
+def enrich_refs(refs) -> list[dict]:
+    """يحوّل قائمة مراجع (نصوص أو dict) لقائمة {name,url} موحّدة -- من الآن فصاعدًا
+    (بتوجيه صريح من المسؤول 2026-09-14): لا مرجع بلا رابط."""
+    out = []
+    for r in (refs or []):
+        if isinstance(r, dict) and r.get("url"):
+            out.append({"name": r.get("name") or r["url"], "url": r["url"]})
+        else:
+            name = r.get("name") if isinstance(r, dict) else str(r)
+            out.append({"name": name, "url": _ref_url(name)})
+    return out
+
+
 def write_script(lesson: dict, extra_notes: str = "") -> dict:
     sysmsg = WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
     user = (
@@ -145,7 +183,137 @@ def write_script(lesson: dict, extra_notes: str = "") -> dict:
         # نملأه آليًا من heading/term_en بدل ما نرفض السيناريو كامل ونعيد توليده من الصفر.
         if not sc.get("visual_focus"):
             sc["visual_focus"] = sc.get("term_en") or sc.get("heading") or "eye anatomy overview"
+    fs["scientific_refs_ar"] = enrich_refs(fs.get("scientific_refs_ar"))
     return fs
+
+
+# ---------------- تدقيق إملائي ضيّق النطاق (وكيل مخصّص لمشكلة محددة) ----------------
+# قاعدة عامة للمشروع (بتوجيه صريح من المسؤول 2026-09-14): أي مشكلة متكررة محددة في
+# التدفق تُحل بخطوة/وكيل ضيّق النطاق مخصّص لها، بدل الاعتماد على إعادة توليد شاملة
+# قد تصلح شيئًا وتكسر شيئًا آخر في نفس الوقت (كما لوحظ فعليًا: كل إعادة توليد كاملة
+# كانت تصلح خطأ إملائيًا وتُدخل خطأ جديدًا مكانه).
+PROOFREAD_SYSTEM = (
+    "انت مدقق إملائي فقط، مش كاتب أو محرر. مهمتك الوحيدة: تصحيح الأخطاء الإملائية/الطباعية "
+    "الحرفية (حروف ناقصة أو زايدة أو مبدّلة تحوّل الكلمة لكلمة تانية أو كلمة مش موجودة) في نص "
+    "السرد بالعامية المصرية.\n"
+    "ممنوع تمامًا: إعادة الصياغة، تغيير المعنى، تحويل اللهجة لفصحى، حذف أو إضافة جمل، تغيير "
+    "طول النص، أو تغيير أي كلمة سليمة إملائيًا حتى لو تقدر تصوغها بشكل أحسن.\n"
+    "أعد فقط JSON: {\"narration\":\"النص كاملًا بعد التصحيح فقط\"}\n"
+    "لو مفيش أي خطأ إملائي، أعد نفس النص حرفيًا بلا أي تغيير."
+)
+
+
+def proofread_scenes(scenes: list[dict]) -> list[dict]:
+    """تدقيق إملائي ضيّق النطاق فقط (خطوة منفصلة عن الكتابة والمراجعة الشاملة) — يصحح
+    الأخطاء الطباعية الحرفية فقط بدون إعادة صياغة، حفاظًا على المعنى واللهجة والطول.
+    مشهد واحد لكل نداء (بدل دفعة واحدة كبيرة) لتقليل احتمال كسر تنسيق JSON من الموديل
+    على نصوص طويلة متعددة المشاهد -- خطأ لوحظ فعليًا عند إرسال كل المشاهد دفعة واحدة."""
+    for s in scenes:
+        old = s.get("narration", "")
+        if not old.strip():
+            continue
+        try:
+            out = _gemini(PROOFREAD_SYSTEM, old)
+            new = out.get("narration", "")
+        except Exception as e:
+            print(f"[proofread_scenes] مشهد {s.get('scene_no')}: فشل، تم التخطي: {e}", flush=True)
+            continue
+        if not new or not new.strip():
+            continue
+        old_wc, new_wc = len(old.split()), len(new.split())
+        # أمان: ارفض أي "تصحيح" غيّر عدد الكلمات بأكثر من 12% -- على الأغلب إعادة صياغة لا تدقيق
+        if old_wc and abs(new_wc - old_wc) / old_wc > 0.12:
+            print(f"[proofread_scenes] مشهد {s.get('scene_no')}: رُفض (فرق كلمات كبير، يشبه إعادة صياغة)", flush=True)
+            continue
+        s["narration"] = new
+        s["caption"] = _TASH_RE.sub("", new)
+    return scenes
+
+
+# ---------------- حل أخير حتمي: استبدال/حذف كلمات عالقة بدل توقف الإنتاج ----------------
+# بتوجيه صريح من المسؤول 2026-09-14: لو لسه فيه كلمة فصحى أو تشكيل عالق بعد كل محاولات
+# الكتابة والتدقيق، الأفضل استبدالها بمرادف عامي آمن أو حذفها، وقبول تقليص بسيط في عدد
+# الكلمات/مدة الفيديو، بدل ما يتوقف الإنتاج بالكامل بانتظار مراجعة بشرية.
+_MSA_FIX = {
+    "هذا": "ده", "هذه": "دي", "هذان": "دول", "هؤلاء": "دول", "ذلك": "ده", "تلك": "دي",
+    "الذي": "اللي", "التي": "اللي", "الذين": "اللي", "اللذان": "اللي",
+    "لكنَّ": "بس", "لكن": "بس", "سوف": "", "سـ": "هـ",
+    "يتمّ": "بيتم", "يتم ": "بيتم ", "يقوم": "بيعمل", "تقوم": "بتعمل", "نقوم": "بنعمل",
+    "عندما": "لما", "حيثُ": "وبما", "حيث ": "وبما ", "لذلك": "عشان كده", "كذلك": "كمان",
+    "بينما": "وقت ما", "نستطيع": "نقدر", "يمكننا": "نقدر", "يمكنك": "تقدر",
+    "سنشرح": "هنشرح", "سنتحدث": "هنتكلم", "سنتعرف": "هنتعرف", "نتحدث": "بنتكلم", "نستعرض": "بنستعرض",
+    "لدى": "عند", "لديه": "عنده", "لديها": "عندها", "فإنَّ": "يبقى", "فإن ": "يبقى ",
+    "حينما": "لما", "آنذاك": "وقتها", "هو عبارة عن": "هو", "عبارة عن": "",
+    "يُعدّ": "بيتعتبر", "يعدّ": "بيعتبر", "تُعدّ": "بتعتبر", "يُعتبر": "بيعتبر", "لا يزال": "لسه",
+}
+
+
+def _diacritic_tolerant_pattern(bare_word: str) -> str:
+    """يبني نمط بحث يطابق الكلمة حتى لو جات في النص محمّلة بتشكيل بين حروفها —
+    المشكلة اللي لوحظت فعليًا: marker/word بيوصل بلا تشكيل من المراجعة، لكن نص
+    narration المخزّن دايمًا مُشكَّل بالكامل، فمطابقة حرفية (bare) كانت بتفشل صامتة."""
+    tash = "[ؐ-ًؚ-ٰٟۖ-ۜ۟-۪ۨ-ۭـ]*"
+    return tash.join(re.escape(ch) for ch in bare_word)
+
+
+_PARENS = re.compile(r"[（(].*?[）)]")
+
+
+def _clean_fix_text(fix: str) -> str:
+    """احيانا Gemini بيحط شرحا توضيحيا بين قوسين جوه fix -- استبداله حرفيا كان
+    بيدخل النص الشارح ده جوه narration فعليا (خطأ لوحظ فعليا). نشيل اي قوسين."""
+    return re.sub(r"\s{2,}", " ", _PARENS.sub("", fix)).strip()
+
+
+def force_resolve_issues(scenes: list[dict], review: dict) -> list[dict]:
+    """حل أخير حتمي (بلا نموذج): يستبدل/يحذف أي كلمة فصحى أو تشكيل لسه عالق بعد كل
+    محاولات الكتابة والتدقيق والتصحيح الإملائي، بدل ما يوقف الإنتاج بالكامل."""
+    by_scene = {s.get("scene_no"): s for s in scenes}
+
+    for v in (review.get("dialect_violations") or []):
+        sc = by_scene.get(v.get("scene"))
+        if not sc:
+            continue
+        marker = (v.get("marker") or "").strip()
+        if marker:
+            # مصدر: dialect_lint الحتمي -- مرادف معروف مسبقًا من _MSA_FIX
+            repl = _MSA_FIX.get(marker, "")
+            pat = r"(?<![\wء-ي])" + _diacritic_tolerant_pattern(marker) + r"(?![\wء-ي])"
+            sc["narration"] = re.sub(pat, repl, sc["narration"])
+            sc["narration"] = re.sub(r"\s{2,}", " ", sc["narration"]).strip()
+        else:
+            # مصدر: مراجعة Gemini نفسها -- بتوفّر quote/fix جاهزين مباشرة
+            quote = (v.get("quote") or "").strip()
+            fix = _clean_fix_text(v.get("fix") or "")
+            if quote and fix:
+                pat = _diacritic_tolerant_pattern(quote)
+                sc["narration"], n = re.subn(pat, fix, sc["narration"])
+                if not n:
+                    # النص المقتبس مش مطابق حرفيًا (اختلاف تشكيل/ترقيم) -- استبدال حرفي مباشر كحل بديل
+                    sc["narration"] = sc["narration"].replace(quote, fix)
+
+    for i in (review.get("tashkeel_violations") or []):
+        sc = by_scene.get(i.get("scene"))
+        w, exp = i.get("word"), i.get("expected")
+        if sc and w and exp and i.get("type") in ("function_word", "dictionary_fix"):
+            pat = r"(?<![\wء-ي])" + _diacritic_tolerant_pattern(w) + r"(?![\wء-ي])"
+            sc["narration"] = re.sub(pat, exp, sc["narration"])
+
+    # محاولة حل أفضل جهد لأخطاء علمية بصيغة معتادة من المراجع: "كُتب 'X' ... الصحيح 'Y'"
+    # -- استبدال حرفي مباشر لو النمط واضح، وإلا تُترك (خطأ علمي غير قابل للحل الحتمي
+    # يبقى عائقًا حقيقيًا يستحق مراجعة، بعكس التشكيل/اللهجة).
+    quoted = re.compile(r"['’«»\"]([^'’«»\"]{2,40})['’«»\"]")
+    for flag in (review.get("science_flags") or []):
+        m = quoted.findall(str(flag))
+        if len(m) >= 2:
+            wrong, correct = m[0].strip(), m[-1].strip()
+            for s in scenes:
+                if wrong in s.get("narration", ""):
+                    s["narration"] = s["narration"].replace(wrong, correct)
+
+    for s in scenes:
+        s["caption"] = _TASH_RE.sub("", s.get("narration", ""))
+    return scenes
 
 
 # ---------------- qwen: وكيل المراجعة ----------------

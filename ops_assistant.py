@@ -139,11 +139,49 @@ OPS_SYSTEM = (
 )
 
 
+def _visual_diversity(hours=48) -> dict:
+    """يتحقق دوريًا إن الدروس الحديثة مش كلها بترجع لنفس رسم العين العام -- شبكة أمان
+    ضد رجوع مشكلة تكرار نفس الصورة في كل فيديو (لوحظت فعليًا 2026-09-15، حُلّت بوكيل
+    agents.select_visuals لكن هذا الفحص يرصد لو المشكلة رجعت مستقبلًا لأي سبب)."""
+    cutoff = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.time() - hours * 3600))
+    try:
+        rows = _sb_get(
+            "/rest/v1/content_outputs?stage_code=eq.SCRIPT_FINAL&approval_status=eq.approved"
+            f"&created_at=gte.{cutoff}&select=lesson_uid,output_text&order=created_at.desc&limit=20"
+        )
+    except Exception as e:
+        print("[ops_assistant] visual_diversity query failed:", e, flush=True)
+        return {}
+    seen_lessons, counts = set(), {}
+    for r in rows:
+        lu = r.get("lesson_uid")
+        if lu in seen_lessons:
+            continue
+        seen_lessons.add(lu)
+        try:
+            scenes = json.loads(r["output_text"]).get("final_script", {}).get("scenes", [])
+        except Exception:
+            continue
+        for s in scenes:
+            d = s.get("diagram") or "eye"
+            # eye_scene2.py مايعرفش غير cornea_layers وgemini_custom كأنواع خاصة -- أي قيمة
+            # تانية (حتى لو اسم مخترَع مقنع زي visual_pathway) بترجع فعليًا لنفس رسم العين
+            # العام -- بنحسبها هنا كده عشان الرقم يعكس الواقع اللي بيشوفه المشاهد فعلًا.
+            bucket = d if d in ("cornea_layers", "gemini_custom") else "eye (fallback)"
+            counts[bucket] = counts.get(bucket, 0) + 1
+    total = sum(counts.values())
+    eye_frac = (counts.get("eye (fallback)", 0) / total) if total else 0
+    return {"lessons_checked": len(seen_lessons), "diagram_counts": counts,
+            "eye_fraction": round(eye_frac, 2), "flag": eye_frac > 0.7 and total >= 6}
+
+
 def run() -> dict:
     consistency = cc.run()
     stuck = _stuck_lessons()
     errors = _recent_errors()
     infra = _disk_and_drive()
+
+    visuals = _visual_diversity()
 
     payload = {
         "فحص_الاتساق": {"فيديوهات_غير_مربوطة": consistency.get("orphaned"),
@@ -151,6 +189,7 @@ def run() -> dict:
         "دروس_متعثرة_آخر_48_ساعة": stuck,
         "أخطاء_لوجات_آخر_24_ساعة": errors,
         "تخزين": infra,
+        "تنوع_الرسم_البصري_آخر_48_ساعة": visuals,
     }
 
     try:

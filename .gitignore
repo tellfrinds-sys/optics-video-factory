@@ -12,3 +12,8 @@ voice_src/
 test_pilot*.py
 pipeline/.env
 assets/generated/
+
+archive/
+_bak_*
+pipeline/_bak_*
+patch_*.py

@@ -149,6 +149,64 @@ def enrich_refs(refs) -> list[dict]:
     return out
 
 
+# ---------------- وكيل مخصّص لاختيار الرسم البصري (يحل مشكلة محددة: نفس صورة العين ----------------
+# الثابتة تتكرر في كل الفيديوهات بغض النظر عن الموضوع) -- بتوجيه صريح من المسؤول 2026-09-15
+# بعد ملاحظة إن eye_scene2.py يدعم توليد صور Gemini مخصّصة (gemini_custom) من زمان، لكن
+# write_script كان دايمًا بيفتكر "eye" افتراضيًا لكل المشاهد لأن الكاتب معندوش فكرة عن
+# الخيار ده أصلًا. وكيل ضيّق منفصل (موديل رخيص) بيقرر الرسم الأنسب لكل مشهد بعد الكتابة.
+VISUAL_SELECT_SYSTEM = (
+    "انت مخرج بصري لسلسلة فيديوهات تعليمية عن البصريات. هتستلم عنوان الدرس ومشاهده "
+    "(scene_no, heading, term_en, مقتطف من narration). لكل مشهد اختار أنسب طريقة عرض بصري:\n"
+    "- \"eye\": رسم تشريحي عام لمقطع العين الكامل -- بس للمشاهد اللي فعلاً بتشرح بنية "
+    "تشريحية داخل كرة العين نفسها ومكانها النسبي.\n"
+    "- \"cornea_layers\": رسم متخصص لطبقات القرنية الخمس -- بس لمشاهد عن طبقات القرنية تحديدًا.\n"
+    "- \"gemini_custom\": صورة تُولَّد خصيصًا لموضوع المشهد -- استخدمها لأي حاجة غير تشريح "
+    "العين الأساسي: أدوات فحص (فحص الشق الضوئي، منظار العين)، نتائج فحوصات/تحاليل (مجال "
+    "الإبصار، الضغط)، أجهزة (عدسات، نظارات، ليزر)، مسارات عصبية، حالات سريرية، تراكيب خارج "
+    "كرة العين (الجفن، الرموش، الغدد). وفّر visual_prompt بالإنجليزية يصف الصورة بدقة "
+    "ووضوح (مشهد تعليمي بسيط، بلا نص داخل الصورة).\n"
+    "**ممنوع اختيار \"eye\" افتراضيًا لكل شيء -- نوّع حسب موضوع كل مشهد الفعلي، ونادرًا ما "
+    "يكون كل مشاهد الدرس عن نفس الرسم.**\n"
+    "أعد فقط JSON: {\"scenes\":[{\"scene_no\":N,\"diagram\":\"eye|cornea_layers|gemini_custom\","
+    "\"visual_prompt\":\"وصف إنجليزي دقيق -- إلزامي لو gemini_custom، فاضي غير كده\"}]}"
+)
+
+
+def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
+    """وكيل ضيّق مخصّص: يقرر diagram/visual_prompt الأنسب لكل مشهد بدل الاعتماد على
+    write_script وحده اللي بيفتكر eye افتراضيًا. لا يلمس المشاهد المفروض عليها رسم متخصّص
+    مسبقًا (مثل الفرض الصارم لطبقات القرنية) -- يُستدعى بعده فيُبقيها زي ما هي."""
+    targets = [s for s in scenes if s.get("kind") not in ("title", "outro")
+               and s.get("scene_no") != 1 and s.get("diagram") != "cornea_layers"]
+    if not targets:
+        return scenes
+    payload = {"lesson_title": lesson_title,
+               "scenes": [{"scene_no": s.get("scene_no"), "heading": s.get("heading"),
+                          "term_en": s.get("term_en"),
+                          "narration_preview": (s.get("narration") or "")[:150]} for s in targets]}
+    try:
+        out = _gemini(VISUAL_SELECT_SYSTEM, json.dumps(payload, ensure_ascii=False), url=GEMINI_LITE_URL)
+    except Exception as e:
+        print("[select_visuals] فشل، الاحتفاظ بالافتراضي:", e, flush=True)
+        return scenes
+    by_scene = {}
+    for x in (out.get("scenes") or []):
+        try:
+            by_scene[int(x["scene_no"])] = x
+        except Exception:
+            continue
+    for s in targets:
+        choice = by_scene.get(s.get("scene_no"))
+        if not choice:
+            continue
+        diagram = choice.get("diagram")
+        if diagram in ("eye", "cornea_layers", "gemini_custom"):
+            s["diagram"] = diagram
+            if diagram == "gemini_custom" and choice.get("visual_prompt"):
+                s["visual_prompt"] = choice["visual_prompt"]
+    return scenes
+
+
 def write_script(lesson: dict, extra_notes: str = "") -> dict:
     sysmsg = WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
     user = (
@@ -189,6 +247,7 @@ def write_script(lesson: dict, extra_notes: str = "") -> dict:
         # نملأه آليًا من heading/term_en بدل ما نرفض السيناريو كامل ونعيد توليده من الصفر.
         if not sc.get("visual_focus"):
             sc["visual_focus"] = sc.get("term_en") or sc.get("heading") or "eye anatomy overview"
+    fs["scenes"] = select_visuals(fs["scenes"], lesson["title_ar"])
     fs["scientific_refs_ar"] = enrich_refs(fs.get("scientific_refs_ar"))
     return fs
 

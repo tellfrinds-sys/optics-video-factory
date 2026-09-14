@@ -89,14 +89,18 @@ def check_pauses(narration: str, scene_no: int) -> list[dict]:
 
 
 def check_scenes(scenes: list[dict]) -> dict:
-    """نقطة الدخول الوحيدة. تُستدعى من agents.review_script()."""
+    """نقطة الدخول الوحيدة. تُستدعى من agents.review_script().
+    ملاحظة: missing_pause أسلوبي فقط (فاصلة غايبة) وليس خطأ نطق/معنى حقيقي —
+    لا يُسقط tashkeel_ok بمفرده (بتوجيه صريح من المسؤول 2026-09-14: تقليص بسيط أو
+    ملاحظات أسلوبية بسيطة لا توقف الإنتاج، فقط أخطاء النطق/اللهجة/العلم الحقيقية)."""
     issues = []
     for s in scenes or []:
         n = s.get("scene_no", 0)
         text = s.get("narration", "") or ""
         issues += check_scene_words(text, n)
         issues += check_pauses(text, n)
-    return {"tashkeel_ok": not issues, "issues": issues}
+    hard = [i for i in issues if i.get("type") != "missing_pause"]
+    return {"tashkeel_ok": not hard, "issues": issues}
 
 
 def apply_dictionary_fixes(scenes: list[dict]) -> tuple[list[dict], list[dict]]:

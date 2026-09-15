@@ -189,8 +189,11 @@ def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
     except Exception as e:
         print("[select_visuals] فشل، الاحتفاظ بالافتراضي:", e, flush=True)
         return scenes
+    # حماية: الموديل أحيانًا بيرجّع list مباشرة بدل {"scenes":[...]} رغم تعليمات
+    # الصيغة -- خطأ لوحظ فعليًا (crash كامل على لسان 100010) قبل هذا الإصلاح.
+    raw_scenes = out if isinstance(out, list) else (out.get("scenes") if isinstance(out, dict) else None) or []
     by_scene = {}
-    for x in (out.get("scenes") or []):
+    for x in raw_scenes:
         try:
             by_scene[int(x["scene_no"])] = x
         except Exception:

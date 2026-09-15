@@ -496,6 +496,11 @@ def review_script(fs: dict, lesson: dict) -> dict:
     scenes = fixed_scenes
     wc = sum(len(s.get("narration", "").split()) for s in scenes)
     g = _gemini_review(fs, lesson)                 # مراجعة تحريرية شاملة (Gemini)
+    # حماية: الموديل أحيانًا بيرجّع list بدل dict (خطأ لوحظ فعليًا بعد التحويل لـ
+    # gemini-3-flash-preview) -- بدل ما يكسر كل استدعاءات g.get() اللي جاية، نرجّعها dict فاضي.
+    if not isinstance(g, dict):
+        print("[review_script] تحذير: مراجعة Gemini رجعت شكل غير متوقع (%s)، هتُعامَل كفاضية" % type(g).__name__, flush=True)
+        g = {}
     q = dialect_lint(scenes)                       # مدقّق لهجة حتمي (فوري)
     t = tashkeel_qa.check_scenes(scenes)           # بوابة تشكيل/نطق حتمية (فورية، كود لا نموذج)
     qd = _qwen_deep_dialect(scenes)                # اختياري

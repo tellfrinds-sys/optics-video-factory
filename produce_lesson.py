@@ -180,7 +180,7 @@ def _save_healed_script(lesson_uid, code, uid, title, scenes):
             url + "/rest/v1/content_outputs", data=_j.dumps({
                 "lesson_uid": int(lesson_uid), "stage_code": "SCRIPT_FINAL",
                 "prompt_binding_uid": "820006", "revision_no": int(_t.time()),
-                "output_text": ot, "output_hash": "autoheal", "model_used": "auto_healed",
+                "output_text": ot, "output_hash": "autoheal_%d" % int(_t.time() * 1000), "model_used": "auto_healed",
                 "approval_status": "approved"}).encode(), method="POST",
             headers={"apikey": key, "Authorization": "Bearer " + key,
                      "Content-Type": "application/json", "Prefer": "return=minimal"}), timeout=30).read()

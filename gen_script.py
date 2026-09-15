@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path("/root/video-factory")
 GEMINI_URL = os.environ.get(
     "GEMINI_URL",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent")
 PROMPT_FILE = ROOT / "pipeline" / "prm_script_3.txt"
 
 

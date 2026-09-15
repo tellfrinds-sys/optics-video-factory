@@ -25,12 +25,12 @@ WRITER_PROMPT = PIPE / "prm_writer.txt"
 REVIEWER_PROMPT = PIPE / "prm_reviewer.txt"
 GEMINI_URL = os.environ.get(
     "GEMINI_URL",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent")
 # موديل أرخص (gemini-3.5-flash-lite، ~60% أرخص للتوكن) للمهام الضيّقة فقط (تدقيق إملائي) --
 # اقتصاد فعلي بطلب صريح من المسؤول 2026-09-15، بدون المساس بجودة الكتابة/المراجعة الأساسية.
 GEMINI_LITE_URL = os.environ.get(
     "GEMINI_LITE_URL",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent")
 
 
 def _word_limits(lesson: dict) -> tuple[int, int]:

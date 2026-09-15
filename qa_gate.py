@@ -104,7 +104,7 @@ def _ollama(system: str, prompt: str) -> dict:
 
 GEMINI_URL = os.environ.get(
     "GEMINI_URL",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent")
 STYLE_GUIDE_FILE = ROOT / "pipeline" / "style_guide.md"
 
 

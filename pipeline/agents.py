@@ -31,6 +31,17 @@ GEMINI_URL = os.environ.get(
 GEMINI_LITE_URL = os.environ.get(
     "GEMINI_LITE_URL",
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
+
+
+def _word_limits(lesson: dict) -> tuple[int, int]:
+    """حدود عدد الكلمات حسب الجمهور المستهدف -- بتوجيه المسؤول 2026-09-15: السقف
+    السابق (750/400 موحّد لكل الدروس) طلّع فيديو الممارس المتخصص 3 دقائق فقط، وهو قصير.
+    مسار الجمهور (توعوي، primary_audience_uid=3) محتاج وقت أطول لشرح مبسّط بدون افتراض
+    خلفية علمية سابقة (تشبيهات + سياق أكتر)، فسقفه أعلى من مسار الممارسين."""
+    if lesson.get("primary_audience_uid") == 3:
+        return 650, 950          # توعوي/جمهور: ~5-6.5 دقيقة
+    return 500, 900              # ممارسين/متخصص: ~3.5-6 دقائق (رُفع من 400-750)
+
 OLLAMA = "http://127.0.0.1:11434/api/generate"
 QA_MODEL = os.environ.get("QA_MODEL", "qwen2.5:7b-instruct")
 
@@ -211,7 +222,9 @@ def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
 
 
 def write_script(lesson: dict, extra_notes: str = "") -> dict:
-    sysmsg = WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+    wmin, wmax = _word_limits(lesson)
+    sysmsg = (WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+              .replace("{WORD_MIN}", str(wmin)).replace("{WORD_MAX}", str(wmax)))
     user = (
         "lesson_code: %s\nvideo_uid: %d\n"
         "عنوان الدرس الرسمي: %s\n"
@@ -437,7 +450,9 @@ def dialect_lint(scenes: list[dict]) -> dict:
 
 
 def _gemini_review(fs: dict, lesson: dict) -> dict:
-    sysmsg = REVIEWER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+    wmin, wmax = _word_limits(lesson)
+    sysmsg = (REVIEWER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+              .replace("{WORD_MIN}", str(wmin)).replace("{WORD_MAX}", str(wmax)))
     scenes = fs.get("scenes", [])
     wc = sum(len(s.get("narration", "").split()) for s in scenes)
     body = {

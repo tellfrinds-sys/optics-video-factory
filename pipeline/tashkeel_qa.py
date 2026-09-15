@@ -103,9 +103,15 @@ def check_scenes(scenes: list[dict]) -> dict:
     return {"tashkeel_ok": not hard, "issues": issues}
 
 
+_ATTACHED_PREFIXES = ("بال", "كال", "فال", "وال", "لل", "ولل", "فلل",
+                      "و", "ف", "ب", "ل", "ك", "ال")
+
+
 def apply_dictionary_fixes(scenes: list[dict]) -> tuple[list[dict], list[dict]]:
     """إصلاح آلي مباشر (بلا نموذج) لأي كلمة موجودة حرفيًا في القواميس المعتمدة —
-    صفر مجازفة لأنه استبدال حرفي معروف مسبقًا، مش تخمين. يُرجع (السيناريو المصحَّح, سجل التعديلات)."""
+    صفر مجازفة لأنه استبدال حرفي معروف مسبقًا، مش تخمين. يُرجع (السيناريو المصحَّح, سجل التعديلات).
+    بيحاول كمان فصل البادئات الملزوقة (و/ف/ب/ل/ك/ال) عن الكلمة قبل المقارنة — خطأ لوحظ
+    فعليًا: كلمة قاموسية ملزوقة ببادئة (زي \"وفسيولوجي\") كانت بتفوت المطابقة صامتة."""
     surf, optics = _dicts()
     merged = {**optics, **surf, **FUNCTION_WORDS}
     applied = []
@@ -117,6 +123,13 @@ def apply_dictionary_fixes(scenes: list[dict]) -> tuple[list[dict], list[dict]]:
             if bare in merged and w == bare:
                 applied.append({"scene": s.get("scene_no"), "before": w, "after": merged[bare]})
                 return merged[bare]
+            if bare == w:
+                for pre in _ATTACHED_PREFIXES:
+                    if bare.startswith(pre) and bare[len(pre):] in merged:
+                        rest = bare[len(pre):]
+                        applied.append({"scene": s.get("scene_no"), "before": w,
+                                       "after": pre + merged[rest]})
+                        return pre + merged[rest]
             return w
         s["narration"] = _WORD_RE.sub(_sub, text)
     return scenes, applied

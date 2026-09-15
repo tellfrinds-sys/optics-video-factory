@@ -49,7 +49,10 @@ def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
 
     notes, review, fs = "", None, None
     best_fs, best_review, best_score = None, None, -1
-    for attempt in (1, 2):  # اقتصاد رصيد 2026-09-15: 3->2 (5-9 مشاهد الآن بسقف 5د بتتقارب أسرع)
+    for attempt in (1, 2, 3):  # رجّعنا 2->3 (2026-09-15): تقليل الجولات كان بيسرّع
+        # التقارب لكن بيقصّر فرصة تنقية اللهجة/التشكيل، وده اللي سبب تراجع جودة الإلقاء
+        # الملحوظ فعليًا في دروس 6-10 -- التكلفة كانت أساسًا اتحلّت بالموديل الأرخص
+        # للتدقيق الإملائي وليس بتقليل عدد المحاولات نفسه.
         fs = agents.write_script(L, extra_notes=notes)
         fs["scenes"] = agents.proofread_scenes(fs["scenes"])  # تدقيق إملائي ضيّق قبل المراجعة الشاملة
         review = agents.review_script(fs, L)
@@ -76,7 +79,7 @@ def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
     # المسؤول: تقليل بسيط في عدد الكلمات أو استبدال كلمة عالقة أفضل من توقف الإنتاج).
     # يُكرَّر لأن إعادة المراجعة بعد كل تصحيح قد تُظهر مخالفة جديدة صغيرة لم تكن ظاهرة
     # قبله (لوحظ فعليًا) -- التكرار يضمن التقارب بدل توقّف بعد جولة واحدة فقط.
-    for round_no in range(1, 3):  # اقتصاد رصيد 2026-09-15: 3->2 جولات إصلاح أخير
+    for round_no in range(1, 4):  # رجّعنا 2->3 (2026-09-15) لنفس السبب أعلاه
         hard_tashkeel = [x for x in (review.get("tashkeel_violations") or []) if x.get("type") != "missing_pause"]
         if verdict == "pass" or (not hard_tashkeel and not review.get("dialect_violations")
                                   and not review.get("science_flags")):

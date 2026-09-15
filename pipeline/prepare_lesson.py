@@ -52,7 +52,7 @@ def _video_uid_for(lesson_uid: int) -> int:
 
 
 def _fetch_lesson(lesson_uid: int) -> dict:
-    rows = _sb("GET", "/rest/v1/lessons?lesson_uid=eq.%d&select=lesson_code,title_ar,learning_goal,level,duration_minutes,professional_scope_note" % lesson_uid)
+    rows = _sb("GET", "/rest/v1/lessons?lesson_uid=eq.%d&select=lesson_code,title_ar,learning_goal,level,duration_minutes,professional_scope_note,primary_audience_uid" % lesson_uid)
     if not rows:
         raise RuntimeError("الدرس %d غير موجود" % lesson_uid)
     L = rows[0]

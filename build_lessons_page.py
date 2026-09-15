@@ -53,7 +53,7 @@ def _mmss(sec):
         return ""
 
 
-def _lesson_html(l):
+def _lesson_html(l, num):
     code = l["lesson_code"]
     embed = _drive_embed(l.get("video_url"))
     ready = bool(embed)
@@ -63,7 +63,7 @@ def _lesson_html(l):
     dur = _mmss(l.get("video_duration_seconds")) or ("%g د" % l["duration_minutes"] if l.get("duration_minutes") else "")
     parts = ['<article class="lx-lesson" id="%s">' % _esc(code)]
     parts.append('<div class="lx-lhead"><span class="lx-num">%s</span>'
-                 '<h3>%s</h3>%s</div>' % (_esc(code.split("-")[-1].replace("L", "")), _esc(l["title_ar"]), badge))
+                 '<h3>%s</h3>%s</div>' % (num, _esc(l["title_ar"]), badge))
     if l.get("learning_goal"):
         parts.append('<p class="lx-goal">%s</p>' % _esc(l["learning_goal"]))
     if embed:
@@ -114,6 +114,11 @@ def _build_track(rows, doors, units, chaps, out_path, title, subtitle, nav_label
         les_by_chap.setdefault(l.get("chapter_uid"), []).append(l)
     for v in les_by_chap.values():
         v.sort(key=lambda l: l.get("sort_order") or 0)
+    # ترقيم تسلسلي عام عبر كل المسار (مش رقم الدرس داخل الفصل نفسه فقط) -- خطأ لوحظ
+    # فعليًا 2026-09-15: كان الرقم المعروض ياخد آخر جزء من lesson_code (زي L01)، فبيرجع
+    # يبدأ من 1 مع كل فصل جديد بدل ما يكمل تسلسله عبر كل الدروس.
+    global_num = {l["lesson_uid"]: i + 1
+                  for i, l in enumerate(sorted(rows, key=lambda l: l.get("sort_order") or 0))}
 
     sections = []
     for d in doors:
@@ -128,7 +133,7 @@ def _build_track(rows, doors, units, chaps, out_path, title, subtitle, nav_label
                 d_total += len(ll)
                 d_ready += sum(1 for l in ll if _drive_embed(l.get("video_url")))
                 u_inner.append('<div class="lx-chap"><div class="lx-chap-h">%s</div>%s</div>' % (
-                    _esc(c["title_ar"]), "\n".join(_lesson_html(l) for l in ll)))
+                    _esc(c["title_ar"]), "\n".join(_lesson_html(l, global_num[l["lesson_uid"]]) for l in ll)))
             if u_inner:
                 d_inner.append('<div class="lx-unit"><div class="lx-unit-h">%s</div>%s</div>' % (
                     _esc(u["title_ar"]), "\n".join(u_inner)))

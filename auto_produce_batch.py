@@ -157,7 +157,14 @@ if __name__ == "__main__":
     else:
         ids = [int(x) for x in sys.argv[1:]] or _next_pending_lessons(5)
     results = []
-    for lu in ids:
+    for i, lu in enumerate(ids):
+        if i > 0:
+            # فاصل زمني بين الدروس: الطبقة المجانية لـ Gemini محدودة بعشرين نداء/دقيقة
+            # (خطأ RESOURCE_EXHAUSTED لوحظ فعليًا 2026-09-15 مع نص "retry in ~14.5s") --
+            # درس واحد ممكن يستهلك عشرات النداءات (كتابة + مراجعة + إصلاح أخير)، فبدء
+            # الدرس التالي فورًا كان بيصطدم بالسقف باستمرار. 20 ثانية كفاية لتصفير النافذة.
+            print("[توقف 20 ثانية بين الدروس لتفادي حد الطبقة المجانية]", flush=True)
+            time.sleep(20)
         try:
             results.append(auto_produce_lesson(lu))
         except Exception as e:

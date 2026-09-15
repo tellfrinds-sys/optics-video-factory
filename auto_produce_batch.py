@@ -43,6 +43,23 @@ import prepare_lesson
 import produce_lesson
 
 
+def _next_pending_lessons(n: int = 5) -> list[int]:
+    """نقطة الاستكمال (checkpoint): بيجيب أول N دروس لسه محتاجة إنتاج (video_status مش
+    ready) بترتيب lesson_uid -- بيقرأها مباشرة من جدول lessons نفسه، اللي هو أصلًا سجل
+    التقدم الحقيقي والدائم (بيتحدّث تلقائيًا مع كل إنتاج ناجح عبر produce_lesson.produce()).
+    كده أي تشغيلة جديدة تكمل من حيث ما توقفت آخر تشغيلة، من غير ما حد يفتكر يدويًا آخر رقم
+    درس اتنتج، ولا يحتاج يعيد كتابة الدروس اللي خلصت. لو درس اتحاول قبل كده وفشل (زي فشل
+    نفاد رصيد Gemini) هيفضل video_status له فاضي (null) بالظبط زي درس لسه ما اتحاولش،
+    فهيتحاول تاني تلقائيًا من غير خطوة يدوية منفصلة."""
+    url = os.environ["SUPABASE_URL"]; key = os.environ["SUPABASE_SERVICE_KEY"]
+    req = urllib.request.Request(
+        url + "/rest/v1/lessons?or=(video_status.is.null,video_status.neq.ready)"
+              f"&select=lesson_uid&order=lesson_uid&limit={n}",
+        headers={"apikey": key, "Authorization": "Bearer " + key})
+    rows = json.loads(urllib.request.urlopen(req, timeout=30).read())
+    return [r["lesson_uid"] for r in rows]
+
+
 def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
     L = prepare_lesson._fetch_lesson(lesson_uid)
     print(f"== lesson {lesson_uid} ({L['title_ar']}) ==", flush=True)
@@ -133,7 +150,12 @@ def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
 
 
 if __name__ == "__main__":
-    ids = [int(x) for x in sys.argv[1:]] or [100003, 100004, 100005]
+    if sys.argv[1:] and sys.argv[1] == "--continue":
+        count = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+        ids = _next_pending_lessons(count)
+        print(f"[checkpoint] استكمال تلقائي -- أول {count} دروس غير مكتملة: {ids}", flush=True)
+    else:
+        ids = [int(x) for x in sys.argv[1:]] or _next_pending_lessons(5)
     results = []
     for lu in ids:
         try:

@@ -141,11 +141,21 @@ def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
     clean = not hard_tashkeel and not review.get("dialect_violations") and not review.get("science_flags")
     final_ok = verdict == "pass" or clean
 
+    # تعطيل مؤقت لبوابة المراجعة البشرية (بتوجيه صريح 2026-09-16): اختبار درس واحد بالمحتوى
+    # كما هو حتى لو فيه ملاحظات عالقة، عشان نحكم فعليًا على مدى خطورتها في الفيديو النهائي
+    # قبل ما نقرر نفضّل نرجّع البوابة ولا نسيبها متعطّلة. لازم يتشال بمجرد ما القرار يتاخد.
+    force_publish = os.environ.get("FORCE_PUBLISH_DESPITE_REVIEW") == "1"
+    forced_despite_issues = force_publish and not final_ok
+    if forced_despite_issues:
+        print(f"  [FORCE_PUBLISH] الدرس {lesson_uid} فيه ملاحظات عالقة لكن هيتنتج برضه "
+              f"للاختبار (score={review.get('score')})", flush=True)
+        final_ok = True
+
     out_text = json.dumps({"final_script": fs, "status": "PASS" if final_ok else "NEEDS_REVIEW",
                             "review": review}, ensure_ascii=False)
     body = {"lesson_uid": lesson_uid, "stage_code": "SCRIPT_FINAL", "prompt_binding_uid": "820006",
             "revision_no": int(time.time()), "output_text": out_text, "output_hash": _hash(out_text),
-            "model_used": "gemini-3.6-flash + proofreader + force-resolve (auto, no-telegram)",
+            "model_used": "gemini-3.6-flash + proofreader + force-resolve (auto, no-telegram)" + (" [FORCE_PUBLISH]" if forced_despite_issues else ""),
             "approval_status": "approved" if final_ok else "changes_requested"}
     url = os.environ["SUPABASE_URL"]
     key = os.environ["SUPABASE_SERVICE_KEY"]

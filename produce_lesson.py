@@ -284,19 +284,26 @@ def produce(payload: dict) -> dict:
                     # دلوقتي: تطابق حرفي أولاً، بعدين تطابق متسامح مع التشكيل، وإلا نتخطى
                     # الإصلاح ده تمامًا (مش نستبدل المشهد كاملًا).
                     if old_q and old_q in cur:
-                        scenes[i][fld] = cur.replace(old_q, fx["new"])
+                        candidate = cur.replace(old_q, fx["new"])
                     elif old_q:
                         try:
                             pat = _ag._diacritic_tolerant_pattern(old_q)
-                            new_cur, n_sub = re.subn(pat, fx["new"], cur)
+                            candidate, n_sub = re.subn(pat, fx["new"], cur)
                         except Exception:
                             n_sub = 0
-                        if n_sub:
-                            scenes[i][fld] = new_cur
-                        else:
+                        if not n_sub:
                             continue
                     else:
                         continue
+                    # حماية إضافية (2026-09-17، لوحظ فعليًا: درس 100024 -- old_q اتطابق حرفيًا
+                    # (مش mismatch) لكنه كان يغطي تقريبًا كل narration المشهد، فاستبداله بـ
+                    # "new" قصير قلّص 3 مشاهد لجزء صغير ماله معنى. نرفض أي إصلاح بيقلّص
+                    # طول narration المشهد لأقل من 60% من طوله الأصلي، بغض النظر عن نوع التطابق.
+                    if fld == "narration" and len(cur) > 40 and len(candidate) < len(cur) * 0.6:
+                        print(f"  [self-heal] تخطّي إصلاح مشهد {fx.get('scene_no')}: كان هيقلّص "
+                              f"الطول من {len(cur)} لـ {len(candidate)} حرف -- مرفوض", flush=True)
+                        continue
+                    scenes[i][fld] = candidate
                     if fld == "narration":
                         try:
                             scenes[i]["caption"] = _ag._TASH_RE.sub("", scenes[i]["narration"])

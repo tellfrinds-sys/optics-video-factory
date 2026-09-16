@@ -449,6 +449,8 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
     for idx, raw in enumerate(scenes_in, 1):
         sc = int(raw.get("scene_no") or raw.get("scene no") or idx)
         narration = str(raw.get("narration") or "").strip()
+        # حذف التطويل/الكشيدة (ـ, U+0640) قبل التركيب الصوتي لو اتحشر عن طريق الموديل أو أي مرحلة سابقة -- حرف مد تزييني بحت بلا قيمة صوتية، ولوحظ فعليًا أنه بيربك Cartesia ويسبّب نطق غريب (لوحظ فعليًا: مشهد قال فيه الطويل بين كل حرف تقريبًا ، والكلمة الوحيدة المتأثرة "الرقم" اتنطقت غلط).
+        narration = narration.replace("\u0640", "")
         on_screen = str(raw.get("on_screen_text") or raw.get("on screen text") or "")
         caption = str(raw.get("caption") or narration)
         src = raw.get("source_codes") or raw.get("source codes") or ""
@@ -563,6 +565,17 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
     silent = out_dir / "silent.mp4"
     _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
           "-i", str(concat_txt), "-c", "copy", str(silent)], timeout=300)
+
+    # حماية: مجموع مدة مقاطع الفيديو الصامت (محسوبة بعدد إطارات مقرّب) قد يقل بكسر أجزاء من الثانية عن مدة الصوت الفعلية (audio_mix) بعد تجميع كل المشاهد -- لوحظ فعليًا: آخر كلمة في آخر مشهد بتتقطع لأن مرحلة الدمج الأخيرة (-shortest) بتقص الصوت على طول الفيديو الأقصر. نضمن هنا إن الفيديو دايمًا ≥ مدة الصوت بتمديد آخر إطار لو لزم.
+    silent_dur = _dur(silent)
+    if silent_dur < body_total:
+        pad = round(body_total - silent_dur + 0.15, 3)
+        silent_padded = out_dir / "silent_padded.mp4"
+        _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(silent),
+              "-vf", f"tpad=stop_mode=clone:stop_duration={pad}",
+              "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
+              "-r", "30", str(silent_padded)], timeout=300)
+        silent = silent_padded
 
     # 6) بناء مسار الصوت: كل صوت مشهد + صمت SCENE_GAP، ثم loudnorm
     n = len(audio_parts)

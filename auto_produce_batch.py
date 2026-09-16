@@ -144,7 +144,9 @@ def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
     # تعطيل مؤقت لبوابة المراجعة البشرية (بتوجيه صريح 2026-09-16): اختبار درس واحد بالمحتوى
     # كما هو حتى لو فيه ملاحظات عالقة، عشان نحكم فعليًا على مدى خطورتها في الفيديو النهائي
     # قبل ما نقرر نفضّل نرجّع البوابة ولا نسيبها متعطّلة. لازم يتشال بمجرد ما القرار يتاخد.
-    force_publish = os.environ.get("FORCE_PUBLISH_DESPITE_REVIEW") == "1"
+    # عُمِّم القرار 2026-09-17: اعتماد المسؤول بعد ما سمع فيديو اختباري
+    # وحكم إن المراجعة الصوتية الحقيقية على الفيديو النهائي هي المعيار الفعلي، مش درجة مراجعة السكريبت الداخلية اللي بانت أشد بكتير من اللازم. افتراضي التشغيل الآن (مش استثناء محتاج تفعيل يدوي)؛ يتقفل بـ FORCE_PUBLISH_DESPITE_REVIEW=0.
+    force_publish = os.environ.get("FORCE_PUBLISH_DESPITE_REVIEW", "1") == "1"
     forced_despite_issues = force_publish and not final_ok
     if forced_despite_issues:
         print(f"  [FORCE_PUBLISH] الدرس {lesson_uid} فيه ملاحظات عالقة لكن هيتنتج برضه "

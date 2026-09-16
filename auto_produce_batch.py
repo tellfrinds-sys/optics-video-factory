@@ -12,6 +12,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 import time
 import urllib.request
 
@@ -187,6 +188,23 @@ def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
 
 
 if __name__ == "__main__":
+    # قفل تشغيل (2026-09-17، بتوجيه صريح): ممنوع يشتغل أكتر من
+    # نسخة واحدة في نفس الوقت -- لوحظ فعليًا: عمليتين متوازيتين
+    # اشتغلت بالصدفة وأدّي لاحتمال تكرار عمل وهدر تكلفة API.
+    LOCK_FILE = Path("/root/video-factory/outputs/_status/.batch.lock")
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if LOCK_FILE.exists():
+        try:
+            old_pid = int(LOCK_FILE.read_text().strip())
+            os.kill(old_pid, 0)  # يرفع ProcessLookupError لو العملية ماتتشغلش فعليًا
+            print(f"[lock] عملية إنتاج تانية شغّالة بالفعل (PID {old_pid}) -- توقّف بدل تشغيل مزدوج", flush=True)
+            sys.exit(1)
+        except (ValueError, ProcessLookupError, PermissionError):
+            print("[lock] قفل قديم من عملية ماتتشغلش -- تجاهله ونكمل", flush=True)
+    LOCK_FILE.write_text(str(os.getpid()))
+    import atexit
+    atexit.register(lambda: LOCK_FILE.unlink(missing_ok=True))
+
     if sys.argv[1:] and sys.argv[1] == "--continue":
         count = int(sys.argv[2]) if len(sys.argv) > 2 else 5
         ids = _next_pending_lessons(count)

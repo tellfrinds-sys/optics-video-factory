@@ -70,9 +70,18 @@ def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
         # التقارب لكن بيقصّر فرصة تنقية اللهجة/التشكيل، وده اللي سبب تراجع جودة الإلقاء
         # الملحوظ فعليًا في دروس 6-10 -- التكلفة كانت أساسًا اتحلّت بالموديل الأرخص
         # للتدقيق الإملائي وليس بتقليل عدد المحاولات نفسه.
-        fs = agents.write_script(L, extra_notes=notes)
-        fs["scenes"] = agents.proofread_scenes(fs["scenes"])  # تدقيق إملائي ضيّق قبل المراجعة الشاملة
-        review = agents.review_script(fs, L)
+        try:
+            fs = agents.write_script(L, extra_notes=notes)
+            fs["scenes"] = agents.proofread_scenes(fs["scenes"])  # تدقيق إملائي ضيّق قبل المراجعة الشاملة
+            review = agents.review_script(fs, L)
+        except Exception as e:
+            # فشل عابر في محاولة واحدة (زي قطع JSON بسبب MAX_TOKENS -- لوحظ فعليًا بعد
+            # التحويل لـ gemini-3-flash-preview) مايستاهلش يفقدنا الدرس كله؛ نعتبرها محاولة
+            # فاشلة بأقل درجة وننتقل للمحاولة التالية بدل ما نكسر auto_produce_lesson بالكامل.
+            print(f"  attempt {attempt}: فشل عابر -- {e}", flush=True)
+            review = {"verdict": "fail", "score": -1}
+            if fs is None:
+                continue
         verdict = str(review.get("verdict", "")).lower()
         print(f"  attempt {attempt}: verdict={verdict} score={review.get('score')} "
               f"wc={review.get('word_count_estimate')}", flush=True)
@@ -85,6 +94,10 @@ def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
             best_fs, best_review, best_score = json.loads(json.dumps(fs)), review, score
         notes = ("\n".join("• " + x for x in (review.get("must_fix") or [])) +
                  "\nنقاط ناقصة: " + " / ".join(review.get("coverage_gaps") or []))
+
+    if fs is None:
+        print(f"!! lesson {lesson_uid}: كل المحاولات فشلت فشلًا عابرًا (أخطاء اتصال/تحليل JSON) -- توقّف", flush=True)
+        return {"status": "error", "lesson_uid": lesson_uid, "detail": "all attempts raised exceptions"}
 
     verdict = str(review.get("verdict", "")).lower()
     if verdict != "pass" and best_score > (review.get("score") or 0):

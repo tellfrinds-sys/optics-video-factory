@@ -277,10 +277,26 @@ def produce(payload: dict) -> dict:
                 fld = fx.get("field") or "narration"
                 if 0 <= i < len(scenes) and fx.get("new"):
                     cur = str(scenes[i].get(fld, ""))
-                    if fx.get("old") and fx["old"] in cur:
-                        scenes[i][fld] = cur.replace(fx["old"], fx["new"])
+                    old_q = fx.get("old") or ""
+                    # حماية حرجة: لو التطابق الحرفي لـ old مع cur فشل غالبًا (تشكيل مختلف)،
+                    # السقوط القديم كان بيستبدل narration المشهد كامل بجزء الإصلاح القصير بس --
+                    # دمر 3 مشاهد في درس 100024 فعليًا (تقليص مشهد من 800+ حرف لأقل من 50).
+                    # دلوقتي: تطابق حرفي أولاً، بعدين تطابق متسامح مع التشكيل، وإلا نتخطى
+                    # الإصلاح ده تمامًا (مش نستبدل المشهد كاملًا).
+                    if old_q and old_q in cur:
+                        scenes[i][fld] = cur.replace(old_q, fx["new"])
+                    elif old_q:
+                        try:
+                            pat = _ag._diacritic_tolerant_pattern(old_q)
+                            new_cur, n_sub = re.subn(pat, fx["new"], cur)
+                        except Exception:
+                            n_sub = 0
+                        if n_sub:
+                            scenes[i][fld] = new_cur
+                        else:
+                            continue
                     else:
-                        scenes[i][fld] = fx["new"]
+                        continue
                     if fld == "narration":
                         try:
                             scenes[i]["caption"] = _ag._TASH_RE.sub("", scenes[i]["narration"])

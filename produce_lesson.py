@@ -244,7 +244,9 @@ def produce(payload: dict) -> dict:
         _stage("render" if attempt == 0 else "self_heal_%d" % attempt)
         render = narrated_render.render_narrated({
             "video_uid": uid, "scenes": scenes,
-            "bookend_set": payload.get("bookend_set") or "V5",
+            # تدوير المقدمة/الخاتمة بين النسخ المتاحة (V2-V5) بدل تثبيت V5 دايمًا --
+            # بتوجيه صريح: مفيش فيديوهين متتاليين بنفس المقدمة/الملابس.
+            "bookend_set": payload.get("bookend_set") or ["V2", "V3", "V4", "V5"][lesson_uid % 4],
         })
         video = d / "final_narrated.mp4"
         if not video.exists():

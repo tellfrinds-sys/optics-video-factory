@@ -60,7 +60,19 @@ def _next_pending_lessons(n: int = 5) -> list[int]:
     return [r["lesson_uid"] for r in rows]
 
 
-def auto_produce_lesson(lesson_uid: int, bookend_set="V5") -> dict:
+# تدوير المقدمة/الخاتمة (bookend) بين النسخ المتاحة فعليًا -- لوحظ إن كل الدروس كانت
+# بتستخدم V5 فقط رغم وجود V2/V3/V4 جاهزين على القرص وغير مستخدمين خالص (نفس الملابس/الخلفية
+# في كل فيديو متتالي، بتوجيه صريح من المسؤول: يجب التنويع، مفيش فيديوهين متتاليين بنفس المقدمة).
+BOOKEND_SETS = ["V2", "V3", "V4", "V5"]
+
+
+def _bookend_for(lesson_uid: int) -> str:
+    return BOOKEND_SETS[lesson_uid % len(BOOKEND_SETS)]
+
+
+def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
+    if bookend_set is None:
+        bookend_set = _bookend_for(lesson_uid)
     L = prepare_lesson._fetch_lesson(lesson_uid)
     print(f"== lesson {lesson_uid} ({L['title_ar']}) ==", flush=True)
 

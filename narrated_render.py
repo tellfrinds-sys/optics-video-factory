@@ -443,6 +443,7 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
     clip_paths: list[Path] = []
     audio_parts: list[Path] = []
     sub_events: list[tuple[float, float, str]] = []
+    scene_durs: list[tuple] = []  # (scene_no, kind, word_count, duration) -- لضبط شذوذ الطول
     t_cursor = 0.0
     W, H = 1920, 1080
 
@@ -469,6 +470,7 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
                 word_times = _remap_times(word_times, segs)
         a_dur = _dur(a_path)
         audio_parts.append(a_path)
+        scene_durs.append((sc, raw.get("kind"), len(narration.split()), a_dur))
         print(f"[scene {sc}] audio {a_dur:.1f}s", flush=True)
 
         # 2) الرسم — يدعم الظهور التدريجي للمسميات تلقائيًا حسب محتوى المشهد:
@@ -556,6 +558,21 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
                 cur = en
 
         t_cursor += seg_dur
+
+    # ضابط آلي (2026-09-17، بتوجيه صريح بعد حادثة درس 100024): مقارنة كل مشهد "محتوى"
+    # (مش عنوان/خاتمة) بمتوسط باقي مشاهد نفس الدرس -- لو مشهد طوله أقل من 30% من المتوسط
+    # فده شذوذ حقيقي (نص اتقصّ لأي سبب: إصلاح ذاتي، خلل TTS، إلخ) بغض النظر عن التناسب
+    # الداخلي بين عدد كلماته ومدته (لأن النص نفسه ممكن يكون هو اللي اتقصّ، مش بس الصوت).
+    content_durs = [d for (_, k, wc, d) in scene_durs if k not in ("title", "outro") and wc > 3]
+    if len(content_durs) >= 3:
+        avg_dur = sum(content_durs) / len(content_durs)
+        outliers = [(sc, d) for (sc, k, wc, d) in scene_durs
+                    if k not in ("title", "outro") and wc > 3 and d < avg_dur * 0.3]
+        if outliers:
+            raise FactoryError(
+                "شذوذ في مدة مشاهد: " + ", ".join(f"مشهد {sc}={d:.1f}s" for sc, d in outliers) +
+                f" مقابل متوسط {avg_dur:.1f}s لباقي المشاهد -- يوحي بنص متقصّ (زي حادثة "
+                "درس 100024)، توقّف قبل النشر بدل إنتاج فيديو تالف.", 500)
 
     body_total = t_cursor
 

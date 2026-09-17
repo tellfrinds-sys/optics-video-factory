@@ -14,6 +14,8 @@ import re
 import urllib.request
 from pathlib import Path
 
+import llm_router
+
 ROOT = Path("/root/video-factory")
 GEMINI_URL = os.environ.get(
     "GEMINI_URL",
@@ -104,7 +106,7 @@ def gen_script(lesson_uid: int) -> dict:
            L.get("duration_minutes", 8), L.get("professional_scope_note", ""),
            _video_uid_for(lesson_uid), src_txt or "(اعتمد على المعرفة التشريحية القياسية للعين)")
     )
-    out = _gemini(_prompt(), user)
+    out = llm_router.llm(_prompt(), user, gemini_fn=_gemini)
     fs = out.get("final_script") or {}
     if out.get("status") == "BLOCK" or not fs.get("scenes"):
         raise RuntimeError("Gemini: BLOCK / بلا مشاهد :: " + json.dumps(out, ensure_ascii=False)[:500])

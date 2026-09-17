@@ -17,6 +17,7 @@ import urllib.error
 from pathlib import Path
 
 import tashkeel_qa
+import llm_router
 
 ROOT = Path("/root/video-factory")
 PIPE = ROOT / "pipeline"
@@ -219,7 +220,8 @@ def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
                           "term_en": s.get("term_en"),
                           "narration_preview": (s.get("narration") or "")[:150]} for s in targets]}
     try:
-        out = _gemini(VISUAL_SELECT_SYSTEM, json.dumps(payload, ensure_ascii=False), url=GEMINI_LITE_URL)
+        out = llm_router.llm(VISUAL_SELECT_SYSTEM, json.dumps(payload, ensure_ascii=False),
+                              gemini_fn=_gemini, gemini_kwargs={"url": GEMINI_LITE_URL})
     except Exception as e:
         print("[select_visuals] فشل، الاحتفاظ بالافتراضي:", e, flush=True)
         return scenes
@@ -270,7 +272,7 @@ def write_script(lesson: dict, extra_notes: str = "") -> dict:
            lesson.get("sources_text") or "(اعتمد على المراجع التشريحية القياسية للعين والقرنية)",
            ("ملاحظات إلزامية من المراجعة السابقة يجب معالجتها:\n" + extra_notes) if extra_notes else "")
     )
-    out = _gemini(sysmsg, user)
+    out = llm_router.llm(sysmsg, user, gemini_fn=_gemini)
     fs = out.get("final_script") or {}
     if out.get("status") == "BLOCK" or not fs.get("scenes"):
         raise RuntimeError("Gemini BLOCK / بلا مشاهد: " + json.dumps(out, ensure_ascii=False)[:600])
@@ -326,7 +328,8 @@ def proofread_scenes(scenes: list[dict], batch_size: int = 3) -> list[dict]:
         group = [scenes[i] for i in idx[start:start + batch_size]]
         payload = {"scenes": [{"scene_no": s.get("scene_no"), "narration": s["narration"]} for s in group]}
         try:
-            out = _gemini(PROOFREAD_SYSTEM, _json.dumps(payload, ensure_ascii=False), url=GEMINI_LITE_URL)
+            out = llm_router.llm(PROOFREAD_SYSTEM, _json.dumps(payload, ensure_ascii=False),
+                                  gemini_fn=_gemini, gemini_kwargs={"url": GEMINI_LITE_URL})
         except Exception as e:
             nums = [s.get("scene_no") for s in group]
             print(f"[proofread_scenes] مشاهد {nums}: فشل، تم التخطي: {e}", flush=True)
@@ -495,7 +498,8 @@ def _gemini_review(fs: dict, lesson: dict) -> dict:
                      "visual_focus": s.get("visual_focus"),
                      "narration": _TASH_RE.sub("", s.get("narration", ""))} for s in scenes],
     }
-    return _gemini(sysmsg, "راجع هذا السيناريو وأجب JSON فقط:\n" + json.dumps(body, ensure_ascii=False))
+    return llm_router.llm(sysmsg, "راجع هذا السيناريو وأجب JSON فقط:\n" + json.dumps(body, ensure_ascii=False),
+                   gemini_fn=_gemini)
 
 
 def _qwen_deep_dialect(scenes):
@@ -673,7 +677,7 @@ def auto_remediate(qa: dict, fs: dict, lesson: dict) -> dict:
         next((c.get("detail", "") for c in checks if "Gemini" in c.get("check", "")), ""),
         iss_txt, script_txt))
     try:
-        out = _gemini(system, user)
+        out = llm_router.llm(system, user, gemini_fn=_gemini)
     except Exception as e:
         return {"action": "escalate", "diagnosis_ar": "تعذّر استدعاء الوكيل: %s" % e,
                 "script_fixes": [], "accept_as_voice_limitation": [], "learned_rule_ar": ""}
@@ -714,7 +718,7 @@ def chat_edit(fs: dict, lesson: dict, user_msg: str, history: list | None = None
     user = ("السيناريو الحالي:\n%s\n\nالمحادثة السابقة:\n%s\n\nرسالة المستخدم الآن:\n%s"
             % (script_txt, hist_txt or "(بداية)", user_msg))
     try:
-        out = _gemini(system, user)
+        out = llm_router.llm(system, user, gemini_fn=_gemini)
     except Exception as e:
         return {"reply_ar": "حصل خطأ عند الوكيل: %s. جرّب تاني." % e,
                 "scene_patches": [], "replace_all_scenes": None, "ready_to_produce": False}

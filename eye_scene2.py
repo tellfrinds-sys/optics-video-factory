@@ -101,9 +101,35 @@ def _f(path, size):
     return _FCACHE[key]
 
 
+def _pollinations_generate_image(prompt: str, cache_key: str) -> "Path | None":
+    """يولّد صورة عبر Pollinations.ai — مجاني بالكامل، بلا مفتاح API وبلا فوترة
+    (2026-09-17، بديل عن Gemini بعد نفاد الرصيد المدفوع مرارًا). حد الاستخدام المجهول:
+    نداء كل 15 ثانية تقريبًا، وده متوافق تمامًا مع عدد صور الدرس الواحد. فيها علامة مائية
+    صغيرة لحد ما يتسجَّل حساب مجاني على auth.pollinations.ai (خطوة يعملها المسؤول بنفسه)."""
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+    dest = GENERATED_DIR / f"{cache_key}.png"
+    if dest.exists() and dest.stat().st_size > 1000:
+        return dest
+    import urllib.parse as _uparse
+    url = ("https://image.pollinations.ai/prompt/" + _uparse.quote(prompt) +
+           "?width=1600&height=900&nologo=true&model=flux")
+    try:
+        with _urlreq.urlopen(url, timeout=60) as resp:
+            raw = resp.read()
+        dest.write_bytes(raw)
+        if dest.stat().st_size < 1000:
+            dest.unlink(missing_ok=True)
+            return None
+        return dest
+    except Exception as e:
+        print(f"[eye_scene2] Pollinations image generation failed: {e}", flush=True)
+        return None
+
+
 def _gemini_generate_image(prompt: str, cache_key: str) -> "Path | None":
-    """يولّد صورة توضيحية عبر Gemini ويخزّنها بالكاش على القرص؛ يرجع None عند أي فشل
-    (لا استثناء يُرفَع أبدًا هنا — الاحتياطي الآمن هو رسم العين الافتراضي في render_scene)."""
+    """احتياطي ثانوي فقط (مدفوع/محدود الحصة) — يُستخدم بس لو Pollinations فشل ولو مفتاح
+    Gemini شغّال أصلًا. لا استثناء يُرفَع أبدًا هنا — الاحتياطي الآمن الأخير هو رسم العين
+    الافتراضي في render_scene."""
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
     dest = GENERATED_DIR / f"{cache_key}.png"
     if dest.exists() and dest.stat().st_size > 1000:
@@ -125,6 +151,12 @@ def _gemini_generate_image(prompt: str, cache_key: str) -> "Path | None":
     except Exception as e:
         print(f"[eye_scene2] Gemini image generation failed: {e}", flush=True)
         return None
+
+
+def _generate_scene_image(prompt: str, cache_key: str) -> "Path | None":
+    """نقطة الدخول الموحّدة لتوليد صورة مشهد: Pollinations (مجاني) أولًا، Gemini
+    (مدفوع/احتياطي) لو فشل، وإلا None فيسقط render_scene لرسم العين الافتراضي الآمن."""
+    return _pollinations_generate_image(prompt, cache_key) or _gemini_generate_image(prompt, cache_key)
 
 
 def _bg() -> Image.Image:
@@ -330,7 +362,7 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
                   "professional optics/medical textbook style, no text, no words, no letters, "
                   "no labels, no watermark, high detail")
         cache_key = hashlib.md5(prompt.encode("utf-8")).hexdigest()[:16]
-        gen_path = _gemini_generate_image(prompt, cache_key)
+        gen_path = _generate_scene_image(prompt, cache_key)
         if gen_path is not None:
             try:
                 gi = Image.open(gen_path).convert("RGBA")

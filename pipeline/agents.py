@@ -63,6 +63,15 @@ def style_guide() -> str:
     return STYLE.read_text(encoding="utf-8") if STYLE.exists() else ""
 
 
+def _style_tail(n: int = 6000) -> str:
+    """آخر n حرف من دليل الأسلوب فقط -- الملف تراكمي (49KB+) وبيكبر باستمرار؛ كان
+    مقبولاً مع Gemini (نافذة سياق ضخمة) لكن بيتخطى حد التوكن/الدقيقة لموديلات Groq
+    المجانية فورًا (413 Payload Too Large لوحظ فعليًا 2026-09-17). الذيل = أحدث
+    القواعد المتراكمة، وهو الأهم عمليًا."""
+    g = style_guide()
+    return g[-n:] if len(g) > n else g
+
+
 def bump_style_guide(rule: str, tag: str = ""):
     rule = (rule or "").strip()
     if not rule or len(rule) < 8:
@@ -255,7 +264,7 @@ def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
 
 def write_script(lesson: dict, extra_notes: str = "") -> dict:
     wmin, wmax = _word_limits(lesson)
-    sysmsg = (WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+    sysmsg = (WRITER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", _style_tail())
               .replace("{WORD_MIN}", str(wmin)).replace("{WORD_MAX}", str(wmax)))
     user = (
         "lesson_code: %s\nvideo_uid: %d\n"
@@ -484,7 +493,7 @@ def dialect_lint(scenes: list[dict]) -> dict:
 
 def _gemini_review(fs: dict, lesson: dict) -> dict:
     wmin, wmax = _word_limits(lesson)
-    sysmsg = (REVIEWER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", style_guide())
+    sysmsg = (REVIEWER_PROMPT.read_text(encoding="utf-8").replace("{STYLE_GUIDE}", _style_tail())
               .replace("{WORD_MIN}", str(wmin)).replace("{WORD_MAX}", str(wmax)))
     scenes = fs.get("scenes", [])
     wc = sum(len(s.get("narration", "").split()) for s in scenes)

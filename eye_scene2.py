@@ -305,6 +305,15 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
         _footer(img, code)
         return img
 
+    # رسم برمجي بالكامل (بلا API) لمخططات البصريات الهندسية -- عدسات/أشعة/منشور/أخطاء
+    # انكسارية/قياسات إطار/PD -- بديل مجاني ودقيق هندسيًا عن gemini_custom لمحتوى مسار
+    # التوصيف البصري (2026-09-17). راجع optics_diagrams.py.
+    if sc != 1 and scene.get("kind") not in ("title", "outro"):
+        import optics_diagrams
+        _od_img = optics_diagrams.render_optics_diagram(scene)
+        if _od_img is not None:
+            return _od_img
+
     # رسم متخصّص: مقطع القرنية وطبقاتها
     if scene.get("diagram") == "cornea_layers" and sc != 1 and scene.get("kind") not in ("title", "outro"):
         _header(img, heading, scene.get("term_en") or "")

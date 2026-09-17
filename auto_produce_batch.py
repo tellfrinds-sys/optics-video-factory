@@ -128,7 +128,15 @@ def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
                                   and not review.get("science_flags")):
             break
         fs["scenes"] = agents.force_resolve_issues(fs["scenes"], review)
-        review = agents.review_script(fs, L)
+        try:
+            review = agents.review_script(fs, L)
+        except Exception as e:
+            # فشل عابر هنا (429 لوحظ فعليًا 2026-09-17) كان بيكسر الدرس كامل رغم إن
+            # عندنا فعليًا سكريبت مُصحَّح جاهز من force_resolve_issues -- بدل التوقف،
+            # نكمل بالمراجعة الأخيرة الناجحة زي ما هي ونوقف محاولات الإصلاح الإضافية.
+            print(f"  force-resolve round {round_no}: فشل عابر في المراجعة -- {e} "
+                  f"(الاستمرار بالسكريبت الحالي بلا تصحيح إضافي)", flush=True)
+            break
         verdict = str(review.get("verdict", "")).lower()
         print(f"  force-resolve round {round_no}: verdict={verdict} score={review.get('score')} "
               f"wc={review.get('word_count_estimate')}", flush=True)

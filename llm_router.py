@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -64,7 +65,15 @@ def _groq_once(system: str, user: str, model: str) -> str:
                 break
         except urllib.error.HTTPError as he:
             if he.code in (429, 503) and _try < 4:
-                time.sleep(15 * (_try + 1))
+                wait = 15 * (_try + 1)
+                try:
+                    body = he.read().decode("utf-8", "ignore")
+                    m = re.search(r"try again in ([\d.]+)s", body)
+                    if m:
+                        wait = float(m.group(1)) + 1  # نلتزم بالوقت اللي السيرفر نفسه بيطلبه
+                except Exception:
+                    pass
+                time.sleep(wait)
                 continue
             raise
     if d is None:

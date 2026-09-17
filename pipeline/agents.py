@@ -63,7 +63,7 @@ def style_guide() -> str:
     return STYLE.read_text(encoding="utf-8") if STYLE.exists() else ""
 
 
-def _style_tail(n: int = 6000) -> str:
+def _style_tail(n: int = 4000) -> str:
     """آخر n حرف من دليل الأسلوب فقط -- الملف تراكمي (49KB+) وبيكبر باستمرار؛ كان
     مقبولاً مع Gemini (نافذة سياق ضخمة) لكن بيتخطى حد التوكن/الدقيقة لموديلات Groq
     المجانية فورًا (413 Payload Too Large لوحظ فعليًا 2026-09-17). الذيل = أحدث
@@ -325,7 +325,7 @@ PROOFREAD_SYSTEM = (
 )
 
 
-def proofread_scenes(scenes: list[dict], batch_size: int = 3) -> list[dict]:
+def proofread_scenes(scenes: list[dict], batch_size: int = 20) -> list[dict]:
     """تدقيق إملائي ضيّق النطاق فقط (خطوة منفصلة عن الكتابة والمراجعة الشاملة) — يصحح
     الأخطاء الطباعية الحرفية فقط بدون إعادة صياغة، حفاظًا على المعنى واللهجة والطول.
     اقتصاد فعلي (2026-09-15، بطلب صريح من المسؤول لتقليل استهلاك الرصيد): دفعات من 3

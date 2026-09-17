@@ -122,7 +122,7 @@ def auto_produce_lesson(lesson_uid: int, bookend_set=None) -> dict:
     # المسؤول: تقليل بسيط في عدد الكلمات أو استبدال كلمة عالقة أفضل من توقف الإنتاج).
     # يُكرَّر لأن إعادة المراجعة بعد كل تصحيح قد تُظهر مخالفة جديدة صغيرة لم تكن ظاهرة
     # قبله (لوحظ فعليًا) -- التكرار يضمن التقارب بدل توقّف بعد جولة واحدة فقط.
-    for round_no in range(1, 3):  # تقليص 3->2 (2026-09-16) لنفس السبب أعلاه
+    for round_no in range(1, 2):  # تقليص 3->2->1 (2026-09-17، DeepSeek: توفير توكن -- المنحة محدودة بالوقت)
         hard_tashkeel = [x for x in (review.get("tashkeel_violations") or []) if x.get("type") != "missing_pause"]
         if verdict == "pass" or (not hard_tashkeel and not review.get("dialect_violations")
                                   and not review.get("science_flags")):

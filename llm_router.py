@@ -16,7 +16,13 @@
   يستهلك ~7300 توكن -- بالظبط تحت السقف. جودة اللهجة عالية وطبيعية فعليًا (فُحصت مباشرة
   على محتوى درس حقيقي قبل الاعتماد).
 
-Gemini فضل احتياطي ثانوي بس لو مفتاحه/رصيده اشتغلوا يومًا.
+Gemini فضل احتياطي ثانوي (معطّل حاليًا عبر GEMINI_FALLBACK_DISABLED=1 لحد ما رصيده يرجع).
+
+⚠️ درس مستفاد فعليًا (2026-09-17): إعادة المحاولة على 429 لازم تكون **حلقة واحدة بميزانية
+وقت إجمالية محدودة**، مش حلقتين متداخلتين (كانت النتيجة قبل الإصلاح: حلقة خارجية 4
+محاولات × حلقة داخلية 5 محاولات = حتى 20 انتظارة، كل واحدة ممكن توصل لعشرات الثواني
+لو Groq نفسه طلب انتظار طويل -- درس واحد استنى 21+ دقيقة بسبب كده بالظبط). البنية دلوقتي:
+حلقة واحدة فقط في _groq()، بميزانية إجمالية (GROQ_MAX_WAIT_SECONDS)، فمفيش انفجار مضاعف.
 
 الاستخدام: استبدل أي `_gemini(system, user, ...)` بـ `llm_router.llm(system, user,
 gemini_fn=_gemini, gemini_kwargs={...})` -- نفس عقد الإرجاع بالظبط (dict مُفكّك من JSON)،
@@ -36,9 +42,23 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
 # سقف رد أقل من حصة التوكن/الدقيقة للموديلات العادية (8K) بعد خصم حجم البرومبت --
 # مقاس فعليًا: برومبت الكتابة الكامل ~4000 توكن، فسيب هامش أمان معقول للرد.
 GROQ_MAX_COMPLETION_TOKENS = int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "4000"))
+# أقصى وقت إجمالي (كل المحاولات مجتمعة) قبل الاستسلام والرفع لدالة الاستدعاء --
+# يحمي من انتظار عشرات الدقائق على نداء واحد (لوحظ فعليًا 21-37 دقيقة قبل هذا السقف).
+GROQ_MAX_WAIT_SECONDS = int(os.environ.get("GROQ_MAX_WAIT_SECONDS", "90"))
 
 
-def _groq_once(system: str, user: str, model: str) -> str:
+def _extract_retry_after(he: urllib.error.HTTPError, default: float) -> float:
+    try:
+        msg = he.read().decode("utf-8", "ignore")
+        m = re.search(r"try again in ([\d.]+)s", msg)
+        if m:
+            return float(m.group(1)) + 1
+    except Exception:
+        pass
+    return default
+
+
+def _groq_request(system: str, user: str, model: str) -> str:
     key = os.environ.get("GROQ_API_KEY")
     if not key:
         raise RuntimeError("GROQ_API_KEY غير مضبوط")
@@ -57,27 +77,8 @@ def _groq_once(system: str, user: str, model: str) -> str:
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
                  "User-Agent": "curl/8.5.0"},  # urllib الافتراضي بيتحجب بخطأ Cloudflare 1010
     )
-    d = None
-    for _try in range(5):
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                d = json.loads(r.read())
-                break
-        except urllib.error.HTTPError as he:
-            if he.code in (429, 503) and _try < 4:
-                wait = 15 * (_try + 1)
-                try:
-                    body = he.read().decode("utf-8", "ignore")
-                    m = re.search(r"try again in ([\d.]+)s", body)
-                    if m:
-                        wait = float(m.group(1)) + 1  # نلتزم بالوقت اللي السيرفر نفسه بيطلبه
-                except Exception:
-                    pass
-                time.sleep(wait)
-                continue
-            raise
-    if d is None:
-        raise RuntimeError("Groq: تعذّر الاتصال بعد محاولات")
+    with urllib.request.urlopen(req, timeout=120) as r:
+        d = json.loads(r.read())
     try:
         return d["choices"][0]["message"]["content"] or ""
     except Exception:
@@ -101,29 +102,31 @@ def _parse_json_lenient(txt: str) -> dict:
 
 
 def _groq(system: str, user: str, model: str | None = None) -> dict:
+    """حلقة إعادة محاولة واحدة فقط (مش متداخلة) بميزانية وقت إجمالية GROQ_MAX_WAIT_SECONDS.
+    429/503: نستنى بالظبط الوقت اللي Groq طلبه (لو متاح) طالما مازال جوه الميزانية.
+    413: فشل حتمي (الحمولة أكبر من حد الموديل) -- رفع فوري بلا انتظار.
+    غير كده (رد فاضي/JSON تالف): إعادة محاولة سريعة (3 ثواني) طالما جوه الميزانية."""
     m = model or GROQ_MODEL
+    t0 = time.monotonic()
     last_err = None
-    for _attempt in range(4):
+    while True:
         try:
-            txt = _groq_once(system, user, m)
+            txt = _groq_request(system, user, m)
             if not txt.strip():
                 raise RuntimeError("Groq: رد فاضي")
             return _parse_json_lenient(txt)
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code == 413:
-                # الحمولة أكبر من حد التوكن/الدقيقة للموديل -- إعادة نفس الطلب هترجّع
-                # نفس الخطأ دايمًا، فمفيش داعي نستهلك محاولات.
                 raise
-            if _attempt < 3:
-                time.sleep(6)
-                continue
+            wait = _extract_retry_after(e, default=10.0) if e.code in (429, 503) else 5.0
         except Exception as e:
             last_err = e
-            if _attempt < 3:
-                time.sleep(6)
-                continue
-    raise last_err
+            wait = 3.0
+        elapsed = time.monotonic() - t0
+        if elapsed + wait > GROQ_MAX_WAIT_SECONDS:
+            raise last_err
+        time.sleep(wait)
 
 
 def llm(system: str, user: str, gemini_fn=None, gemini_kwargs: dict | None = None,
@@ -134,8 +137,7 @@ def llm(system: str, user: str, gemini_fn=None, gemini_kwargs: dict | None = Non
         groq_err = e
         # لو معروف إن رصيد Gemini مقفول فعليًا (GEMINI_FALLBACK_DISABLED=1) -- مفيش داعي
         # نستنى دورة إعادة محاولات Gemini الكاملة (تصل لدقايق) على مفتاح هيفشل أكيد؛
-        # نرفع خطأ Groq فورًا بدل الانتظار بلا فايدة (لوحظ فعليًا 2026-09-17: 37 دقيقة
-        # انتظار على درس واحد بسبب ده تحديدًا).
+        # نرفع خطأ Groq فورًا بدل الانتظار بلا فايدة.
         if os.environ.get("GEMINI_FALLBACK_DISABLED") == "1":
             print(f"[llm_router] Groq فشل ({groq_err}) -- Gemini معطّل (رصيده منتهي)، رفع الخطأ فورًا", flush=True)
             raise groq_err

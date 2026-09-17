@@ -1,28 +1,31 @@
 # -*- coding: utf-8 -*-
-"""llm_router.py — طبقة توجيه موحّدة لكل نداءات النص (كتابة/مراجعة/اختيار بصري/إصلاح)،
-2026-09-17: بعد نفاد رصيد Gemini المدفوع مرارًا ("غارم")، Groq بقى المحرك الأساسي --
-مجاني حقيقي (بدون بطاقة ائتمان)، وحصته حد استخدام يتجدد تلقائيًا بدل محفظة بتخلص، فمستحيل
-تتكرر نفس أزمة "الرصيد خلص".
+"""llm_router.py — طبقة توجيه موحّدة لكل نداءات النص (كتابة/مراجعة/اختيار بصري/إصلاح).
 
-اختيار الموديل (بالتجربة الفعلية، مش تخمين):
-- allam-2-7b (ALLaM/SDAIA): أفضل جودة لهجة مصرية، لكن حصته 6K توكن/دقيقة بس -- أصغر من
-  حجم نداء واحد فعلي (برومبت+رد) فبترفض الطلب من الأساس (413).
-- groq/compound / compound-mini: حصته المعلَنة سخية (70K TPM) لكنه موديل "وكيلي" بينادي
-  داخليًا على موديلات فرعية (لوحظ فعليًا: llama-3.3-70b و gpt-oss-120b) وبيرتطم بحصصهم
-  الصغيرة من جوه بشكل عشوائي غير متحكَّم فيه -- 429 متقطع لا يمكن الاعتماد عليه في
-  إنتاج تلقائي غير مراقَب. تم استبعاده لهذا السبب بعد اختبار حي مباشر.
-- qwen/qwen3.8-27b (المُعتمَد): موديل عادي (لا نداءات خفية)، حصته 8K TPM، وبعد تقليص
-  حجم برومبت دليل الأسلوب المحقون (_style_tail في agents.py) بقى نداء الكتابة الكامل
-  يستهلك ~7300 توكن -- بالظبط تحت السقف. جودة اللهجة عالية وطبيعية فعليًا (فُحصت مباشرة
-  على محتوى درس حقيقي قبل الاعتماد).
+تاريخ القرار (2026-09-17): بعد نفاد رصيد Gemini المدفوع مرارًا ("غارم")، جرّبنا Groq
+(مجاني حقيقي بلا بطاقة) وثبت إنه شغّال لكن حصته صغيرة جدًا لمشروع بحجمنا (200K توكن/يوم
+لكل موديل -- استهلكناها في ساعات من الاختبار الفعلي، ومحتاجين موديل واحد يغطي كل
+النداءات فمفيش تنويع بين موديلات بحصص منفصلة). بطلب صريح من المسؤول: **DeepSeek بقى
+المحرك الأساسي دلوقتي** -- منحة تسجيل لمرة واحدة (5 مليون توكن، 30 يوم، بلا بطاقة) أكبر
+بكتير من حصة Groq اليومية، وجودته وسرعته أعلى. **مش مجاني للأبد** (بعد المنحة لازم بطاقة
+دفع) -- قرار واعٍ من المسؤول يقبل استخدام المنحة دلوقتي، مش نفس فلسفة "مجاني للأبد" اللي
+حلت مشكلة الصوت/الصور. Groq فضل احتياطي ثانوي (لسه شغال ومجاني حقيقي)، Gemini معطّل
+(GEMINI_FALLBACK_DISABLED=1) لحد ما رصيده يرجع.
 
-Gemini فضل احتياطي ثانوي (معطّل حاليًا عبر GEMINI_FALLBACK_DISABLED=1 لحد ما رصيده يرجع).
+⚠️ تصميم الحد الأقصى من توفير التوكن (بطلب صريح من المسؤول 2026-09-17)، لاستمرار المنحة
+أطول فترة ممكنة:
+  1) دليل الأسلوب المحقون مقصوص لآخر جزء بس (_style_tail في agents.py) -- كان بيتقصّ
+     لـ Groq أصلًا (413)، هنا بيوفّر توكن حتى لو DeepSeek مش هيرفض الطلب.
+  2) proofread_scenes بقى دفعة واحدة لكل الدرس (مش 3 نداءات منفصلة) -- DeepSeek سياق أكبر
+     بكتير من Gemini/Groq فمعندوش مشكلة كسر JSON اللي كانت سبب التقسيم الأصلي.
+  3) جولات force-resolve اتقلّصت لجولة واحدة بس (كانت 2) -- التصحيح الحتمي
+     (force_resolve_issues، بلا نموذج خالص) بيفضل شغال زي ما هو كحل أخير مجاني.
+  4) system prompt ثابت قد الإمكان بين النداءات (نفس WORD_MIN/WORD_MAX ونفس ذيل دليل
+     الأسلوب) عشان يستفيد من الـ prompt caching التلقائي عند DeepSeek (خصم ~97% على
+     التوكن المكرر في الجزء الثابت من البرومبت).
 
-⚠️ درس مستفاد فعليًا (2026-09-17): إعادة المحاولة على 429 لازم تكون **حلقة واحدة بميزانية
-وقت إجمالية محدودة**، مش حلقتين متداخلتين (كانت النتيجة قبل الإصلاح: حلقة خارجية 4
-محاولات × حلقة داخلية 5 محاولات = حتى 20 انتظارة، كل واحدة ممكن توصل لعشرات الثواني
-لو Groq نفسه طلب انتظار طويل -- درس واحد استنى 21+ دقيقة بسبب كده بالظبط). البنية دلوقتي:
-حلقة واحدة فقط في _groq()، بميزانية إجمالية (GROQ_MAX_WAIT_SECONDS)، فمفيش انفجار مضاعف.
+⚠️ درس مستفاد من تجربة Groq (لسه سارٍ هنا): إعادة المحاولة على 429 لازم تكون **حلقة
+واحدة بميزانية وقت إجمالية محدودة**، مش حلقتين متداخلتين (كان السبب في انتظار 21+ دقيقة
+على نداء واحد قبل الإصلاح).
 
 الاستخدام: استبدل أي `_gemini(system, user, ...)` بـ `llm_router.llm(system, user,
 gemini_fn=_gemini, gemini_kwargs={...})` -- نفس عقد الإرجاع بالظبط (dict مُفكّك من JSON)،
@@ -37,18 +40,19 @@ import time
 import urllib.error
 import urllib.request
 
+# ---------------- DeepSeek: المحرك الأساسي (2026-09-17) ----------------
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MAX_COMPLETION_TOKENS = int(os.environ.get("DEEPSEEK_MAX_COMPLETION_TOKENS", "6000"))
+DEEPSEEK_MAX_WAIT_SECONDS = int(os.environ.get("DEEPSEEK_MAX_WAIT_SECONDS", "120"))
+
+# ---------------- Groq: احتياطي ثانوي (مجاني حقيقي، حصته أصغر) ----------------
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
-# سقف رد أقل من حصة التوكن/الدقيقة للموديلات العادية (8K) بعد خصم حجم البرومبت --
-# مقاس فعليًا: برومبت الكتابة الكامل ~4000 توكن، فسيب هامش أمان معقول للرد.
 GROQ_MAX_COMPLETION_TOKENS = int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "4000"))
-# أقصى وقت إجمالي (كل المحاولات مجتمعة) قبل الاستسلام والرفع لدالة الاستدعاء --
-# يحمي من انتظار عشرات الدقائق على نداء واحد (لوحظ فعليًا 21-37 دقيقة قبل هذا السقف).
 GROQ_MAX_WAIT_SECONDS = int(os.environ.get("GROQ_MAX_WAIT_SECONDS", "120"))
-# تباعد استباقي بين نداءات Groq المتتالية -- نداء واحد فعلي بيستهلك ~91% من حصة
-# الدقيقة (~7300 من 8000 توكن)، فنداءان متتاليان بلا تباعد بيتصادموا كل مرة تقريبًا.
 GROQ_MIN_CALL_INTERVAL = float(os.environ.get("GROQ_MIN_CALL_INTERVAL", "20"))
-_last_call_ts = 0.0
+_last_groq_call_ts = 0.0
 
 
 def _extract_retry_after(he: urllib.error.HTTPError, default: float) -> float:
@@ -62,31 +66,29 @@ def _extract_retry_after(he: urllib.error.HTTPError, default: float) -> float:
     return default
 
 
-def _groq_request(system: str, user: str, model: str) -> str:
-    key = os.environ.get("GROQ_API_KEY")
-    if not key:
-        raise RuntimeError("GROQ_API_KEY غير مضبوط")
+def _chat_request(url: str, key: str, model: str, system: str, user: str,
+                   max_completion_tokens: int, extra_headers: dict | None = None,
+                   max_tokens_field: str = "max_tokens") -> str:
     body = json.dumps({
         "model": model,
         "response_format": {"type": "json_object"},
         "temperature": 0.4,
-        "max_completion_tokens": GROQ_MAX_COMPLETION_TOKENS,
+        max_tokens_field: max_completion_tokens,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
     }).encode("utf-8")
-    req = urllib.request.Request(
-        GROQ_URL, data=body, method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
-                 "User-Agent": "curl/8.5.0"},  # urllib الافتراضي بيتحجب بخطأ Cloudflare 1010
-    )
-    with urllib.request.urlopen(req, timeout=120) as r:
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, data=body, method="POST", headers=headers)
+    with urllib.request.urlopen(req, timeout=180) as r:
         d = json.loads(r.read())
     try:
         return d["choices"][0]["message"]["content"] or ""
     except Exception:
-        raise RuntimeError("Groq: رد بلا محتوى: " + json.dumps(d, ensure_ascii=False)[:400])
+        raise RuntimeError("رد بلا محتوى: " + json.dumps(d, ensure_ascii=False)[:400])
 
 
 def _parse_json_lenient(txt: str) -> dict:
@@ -102,16 +104,44 @@ def _parse_json_lenient(txt: str) -> dict:
                 return json.loads(t)
             except Exception:
                 pass
-        raise RuntimeError("Groq: رد غير قابل لتحليل JSON: " + txt[:300])
+        raise RuntimeError("رد غير قابل لتحليل JSON: " + txt[:300])
+
+
+def _deepseek(system: str, user: str, model: str | None = None) -> dict:
+    key = os.environ.get("DEEPSEEK_API_KEY")
+    if not key:
+        raise RuntimeError("DEEPSEEK_API_KEY غير مضبوط")
+    m = model or DEEPSEEK_MODEL
+    t0 = time.monotonic()
+    last_err = None
+    while True:
+        try:
+            txt = _chat_request(DEEPSEEK_URL, key, m, system, user, DEEPSEEK_MAX_COMPLETION_TOKENS)
+            if not txt.strip():
+                raise RuntimeError("DeepSeek: رد فاضي")
+            return _parse_json_lenient(txt)
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code == 413:
+                raise
+            wait = _extract_retry_after(e, default=10.0) if e.code in (429, 503) else 5.0
+        except Exception as e:
+            last_err = e
+            wait = 3.0
+        elapsed = time.monotonic() - t0
+        if elapsed + wait > DEEPSEEK_MAX_WAIT_SECONDS:
+            raise last_err
+        time.sleep(wait)
 
 
 def _groq(system: str, user: str, model: str | None = None) -> dict:
-    """حلقة إعادة محاولة واحدة فقط (مش متداخلة) بميزانية وقت إجمالية GROQ_MAX_WAIT_SECONDS.
-    429/503: نستنى بالظبط الوقت اللي Groq طلبه (لو متاح) طالما مازال جوه الميزانية.
-    413: فشل حتمي (الحمولة أكبر من حد الموديل) -- رفع فوري بلا انتظار.
-    غير كده (رد فاضي/JSON تالف): إعادة محاولة سريعة (3 ثواني) طالما جوه الميزانية."""
-    global _last_call_ts
-    since_last = time.monotonic() - _last_call_ts
+    """حلقة إعادة محاولة واحدة فقط (مش متداخلة) بميزانية وقت إجمالية GROQ_MAX_WAIT_SECONDS،
+    مع تباعد استباقي بين النداءات (نداء واحد بيستهلك ~91% من حصة الدقيقة لبعض الموديلات)."""
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("GROQ_API_KEY غير مضبوط")
+    global _last_groq_call_ts
+    since_last = time.monotonic() - _last_groq_call_ts
     if since_last < GROQ_MIN_CALL_INTERVAL:
         time.sleep(GROQ_MIN_CALL_INTERVAL - since_last)
     m = model or GROQ_MODEL
@@ -119,8 +149,10 @@ def _groq(system: str, user: str, model: str | None = None) -> dict:
     last_err = None
     while True:
         try:
-            txt = _groq_request(system, user, m)
-            _last_call_ts = time.monotonic()
+            txt = _chat_request(GROQ_URL, key, m, system, user, GROQ_MAX_COMPLETION_TOKENS,
+                                 extra_headers={"User-Agent": "curl/8.5.0"},  # Cloudflare 1010
+                                 max_tokens_field="max_completion_tokens")
+            _last_groq_call_ts = time.monotonic()
             if not txt.strip():
                 raise RuntimeError("Groq: رد فاضي")
             return _parse_json_lenient(txt)
@@ -134,24 +166,29 @@ def _groq(system: str, user: str, model: str | None = None) -> dict:
             wait = 3.0
         elapsed = time.monotonic() - t0
         if elapsed + wait > GROQ_MAX_WAIT_SECONDS:
-            _last_call_ts = time.monotonic()
+            _last_groq_call_ts = time.monotonic()
             raise last_err
         time.sleep(wait)
 
 
 def llm(system: str, user: str, gemini_fn=None, gemini_kwargs: dict | None = None,
         groq_model: str | None = None) -> dict:
+    """DeepSeek أولًا (المحرك الأساسي الحالي) -> Groq احتياطي -> Gemini (لو مش معطّل)."""
+    errors = []
+    if os.environ.get("DEEPSEEK_API_KEY"):
+        try:
+            return _deepseek(system, user)
+        except Exception as e:
+            errors.append(f"DeepSeek: {e}")
+            print(f"[llm_router] DeepSeek فشل ({e}) -- تجربة Groq", flush=True)
     try:
         return _groq(system, user, model=groq_model)
     except Exception as e:
-        groq_err = e
-        # لو معروف إن رصيد Gemini مقفول فعليًا (GEMINI_FALLBACK_DISABLED=1) -- مفيش داعي
-        # نستنى دورة إعادة محاولات Gemini الكاملة (تصل لدقايق) على مفتاح هيفشل أكيد؛
-        # نرفع خطأ Groq فورًا بدل الانتظار بلا فايدة.
+        errors.append(f"Groq: {e}")
         if os.environ.get("GEMINI_FALLBACK_DISABLED") == "1":
-            print(f"[llm_router] Groq فشل ({groq_err}) -- Gemini معطّل (رصيده منتهي)، رفع الخطأ فورًا", flush=True)
-            raise groq_err
-        print(f"[llm_router] Groq فشل ({groq_err}) -- تجربة Gemini كاحتياطي", flush=True)
+            print(f"[llm_router] Groq فشل ({e}) -- Gemini معطّل (رصيده منتهي)، رفع الخطأ فورًا", flush=True)
+            raise RuntimeError(" | ".join(errors))
+        print(f"[llm_router] Groq فشل ({e}) -- تجربة Gemini كاحتياطي", flush=True)
     if gemini_fn is None:
-        raise RuntimeError("Groq فشل ومفيش دالة Gemini احتياطية متاحة")
+        raise RuntimeError(" | ".join(errors) or "كل المحركات فشلت")
     return gemini_fn(system, user, **(gemini_kwargs or {}))

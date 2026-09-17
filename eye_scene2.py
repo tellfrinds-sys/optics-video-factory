@@ -37,7 +37,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 ROOT = Path(os.environ.get("OPTICSGATE_FACTORY_ROOT", Path(__file__).resolve().parent)).resolve()
 ASSETS = ROOT / "assets"
 EYE_PNG = ASSETS / "anatomy" / "eye_final.png"
-LOGO_PNG = ASSETS / "brand" / "optics_gate_logo_lashes_only.png"
+LOGO_PNG = ASSETS / "brand" / "optics_gate_logo_transparent.png"  # نسخة بخلفية شفافة فعليًا (الأصلية كانت بيضاء صلبة رغم RGBA -- ظهرت كصندوق أبيض، لوحظ 2026-09-17)
 
 # توليد صور Gemini (للمشاهد غير التشريحية الأساسية — ليس بديلًا عن رسم العين/القرنية المُعايَر)
 GENERATED_DIR = ASSETS / "generated" / "gemini"
@@ -395,31 +395,40 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
                 print(f"[eye_scene2] failed to composite generated image: {e}", flush=True)
                 # يسقط إلى الرسم الافتراضي أدناه (احتياطي آمن)
 
-    # صورة العين
-    eye = _eye_img()
-    img.paste(eye, (EYE_X, EYE_Y), eye)
-
-    _header(img, heading, scene.get("term_en") or "")
-
-    # مشهد العنوان (المشهد الأول أو kind=="title") — يعرض العنوان الفعلي للحلقة
+    # مشهد العنوان (المشهد الأول أو kind=="title") — يعرض العنوان الفعلي للحلقة.
+    # ملحوظة (2026-09-17، مراجعة بشرية مباشرة): كان بيتعرض رسم العين التشريحي هنا
+    # دايمًا بغض النظر عن موضوع الدرس -- غريب/بلا معنى لدروس مش عن تشريح العين (زي
+    # قياسات الإطار)، وكمان ثابت فعليًا في كل عنوان بلا استثناء طول المشروع. استُبدل
+    # بشعار العلامة (زي مشهد الختام) بدل رسم تشريحي مُقحَم على موضوع مش دايمًا مناسب له.
     if sc == 1 or scene.get("kind") == "title":
         d = ImageDraw.Draw(img, "RGBA")
-        bx = EYE_X + EYE_W + 90
+        try:
+            logo = Image.open(LOGO_PNG).convert("RGBA")
+            lh = 300
+            logo = logo.resize((int(logo.width * lh / logo.height), lh), Image.LANCZOS)
+            img.paste(logo, ((W - logo.width) // 2, 150), logo)
+        except Exception:
+            pass
         words = _plain(heading).split()
         if len(words) >= 3:
             cut = (len(words) + 1) // 2
             l1, l2 = " ".join(words[:cut]), " ".join(words[cut:])
         else:
             l1, l2 = heading, ""
-        d.text((W - 70, 322), l1, font=_f(AR_BOLD, 70), fill=INK, anchor="rm", language="ar")
+        d.text((W / 2, 560), l1, font=_f(AR_BOLD, 70), fill=INK, anchor="mm", language="ar")
         if l2:
-            d.text((W - 70, 410), l2, font=_f(AR_BOLD, 70), fill=GOLD, anchor="rm", language="ar")
-        d.line([(bx, 470), (W - 70, 470)], fill=GOLD, width=3)
+            d.text((W / 2, 648), l2, font=_f(AR_BOLD, 70), fill=GOLD, anchor="mm", language="ar")
+        d.line([(W / 2 - 420, 700), (W / 2 + 420, 700)], fill=GOLD, width=3)
         for i, ln in enumerate(scene.get("subtitle_lines") or []):
-            d.text((W - 70, 530 + i * 52), ln, font=_f(AR_REG, 32), fill=DIM, anchor="rm", language="ar")
-        _glow_dot(img, *_anchor_xy("eye_whole"), on=True)
+            d.text((W / 2, 750 + i * 52), ln, font=_f(AR_REG, 32), fill=DIM, anchor="mm", language="ar")
         _footer(img, code)
         return img
+
+    # صورة العين -- للمشاهد التشريحية العامة بس (بعد استبعاد مشهد العنوان أعلاه)
+    eye = _eye_img()
+    img.paste(eye, (EYE_X, EYE_Y), eye)
+
+    _header(img, heading, scene.get("term_en") or "")
 
     # المسميات + خطوط الإشارة
     placed = _place_labels(labels)

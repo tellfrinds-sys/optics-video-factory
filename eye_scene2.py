@@ -346,6 +346,14 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
         if _od_img is not None:
             return _od_img
 
+    # مشاهد مركّبة بالأيقونات (Health Icons، MIT، مجانية للأبد) -- تغطي عمومًا كل
+    # موضوعات المنهج (تشريح/أجهزة/تخصصات) مش بس الهندسة البصرية (2026-09-17).
+    if scene.get("diagram") == "icon_scene" and sc != 1 and scene.get("kind") not in ("title", "outro"):
+        import icon_scenes
+        _is_img = icon_scenes.render_icon_scene(scene)
+        if _is_img is not None:
+            return _is_img
+
     # رسم متخصّص: مقطع القرنية وطبقاتها
     if scene.get("diagram") == "cornea_layers" and sc != 1 and scene.get("kind") not in ("title", "outro"):
         _header(img, heading, scene.get("term_en") or "")

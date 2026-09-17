@@ -187,6 +187,13 @@ VISUAL_SELECT_SYSTEM = (
     "- \"pd_measurement_diagram\": مخطط قياس المسافة بين الحدقتين (PD) -- لمشاهد عن قياس PD.\n"
     "- \"labeled_slide\": شريحة نظيفة بعنوان ونقاط (من labels المشهد نفسه) -- اختيار افتراضي "
     "كويس لمشاهد مفاهيمية بحتة مفيهاش رسم هندسي واضح، أفضل من eye العام دايمًا.\n"
+    "- \"icon_scene\": مشهد أيقونات مركّبة (1-3 أيقونات بجانب بعض، كل واحدة بعنوانها "
+    "العربي) من مكتبة أيقونات طبية جاهزة -- اختيار ممتاز لمواضيع عامة/تشخيصية/أجهزة مش "
+    "هندسية بحتة (مثلاً: كبار السن وطول النظر، فحص وتشخيص، دواء ونظارة، تخصص طبي). "
+    "لازم كل أيقونة تكون بالظبط بصيغة category/name من القائمة دي، حرفيًا، وإلا هترفض:\n"
+    "body/eye, body/ear, body/head, body/skull, body/nerve, body/neurology, devices/eyeglasses, devices/contact-lenses, devices/microscope, devices/microscope-with_specimen, devices/stethoscope, devices/thermometer, devices/thermometer-digital, devices/medicine-bottle, devices/medicine-mortar, devices/syringe, devices/ultrasound-scanner, devices/xray, devices/cane, devices/wheelchair, devices/hearing-aid, devices/diabetes-measure, conditions/dry-eyes, conditions/low-vision, conditions/headache, conditions/allergies, conditions/thyroid-cancer, conditions/pain, specialties/opthalmology, specialties/ears-nose_and_throat, specialties/pediatrics, specialties/geriatrics, specialties/pharmacy, specialties/radiology, symbols/magnifying-glass, symbols/ui-zoom, symbols/ui-zoom_in, symbols/ui-zoom_out, symbols/alert, symbols/alert-circle, symbols/alert-triangle, symbols/info, symbols/question, symbols/question-circle, symbols/yes, symbols/no, symbols/positive, symbols/negative, symbols/cancel, symbols/health, symbols/medical-advice, symbols/medical-search, symbols/lab-search, symbols/rx, symbols/pharmacy, symbols/diabetes, symbols/height, symbols/guide-dog, objects/book, objects/calendar, objects/prescription-document, objects/laptop, objects/phone, people/doctor, people/doctor-female, people/doctor-male, people/nurse, people/old-man, people/old-woman, people/elderly, people/regular-patient, people/man, people/woman, people/person, people/people, emotions/eyeglasses, emotions/happy, emotions/sad, emotions/confused, emotions/calm, emotions/dizzy.\n"
+    "وفّر icon_spec: {\"items\":[{\"icon\":\"body/eye\",\"label\":\"العين\"}, ...] "
+    "(حتى 3 عناصر)، \"caption\":\"نص عربي قصير اختياري\"}.\n"
     "- \"gemini_custom\": صورة تُولَّد بالذكاء الاصطناعي -- استخدمها بس لو مفيش بديل هندسي "
     "مناسب فوق: أدوات فحص فعلية (فحص الشق الضوئي، منظار العين)، نتائج فحوصات (مجال "
     "الإبصار)، أجهزة (فوكيمتر، ليزر)، تراكيب خارج كرة العين (الجفن، الرموش، الغدد)، حالات "
@@ -194,6 +201,7 @@ VISUAL_SELECT_SYSTEM = (
     "داخل الصورة).\n"
     "**ممنوع اختيار \"eye\" افتراضيًا لكل شيء -- نوّع حسب موضوع كل مشهد الفعلي.**\n"
     "أعد فقط JSON: {\"scenes\":[{\"scene_no\":N,\"diagram\":\"...\",\"diagram_spec\":{...}, "
+    "\"icon_spec\":{...}, "
     "\"visual_prompt\":\"وصف إنجليزي -- إلزامي لو gemini_custom بس، فاضي غير كده\"}]}"
 )
 
@@ -231,13 +239,15 @@ def select_visuals(scenes: list[dict], lesson_title: str) -> list[dict]:
         diagram = choice.get("diagram")
         allowed = ("eye", "cornea_layers", "gemini_custom", "lens_ray_diagram", "prism_diagram",
                    "refractive_error_diagram", "frame_measurement_diagram", "pd_measurement_diagram",
-                   "labeled_slide")
+                   "labeled_slide", "icon_scene")
         if diagram in allowed:
             s["diagram"] = diagram
             if diagram == "gemini_custom" and choice.get("visual_prompt"):
                 s["visual_prompt"] = choice["visual_prompt"]
             if choice.get("diagram_spec"):
                 s["diagram_spec"] = choice["diagram_spec"]
+            if diagram == "icon_scene" and choice.get("icon_spec"):
+                s["icon_spec"] = choice["icon_spec"]
     return scenes
 
 

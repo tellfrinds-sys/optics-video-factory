@@ -44,7 +44,11 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
 GROQ_MAX_COMPLETION_TOKENS = int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "4000"))
 # أقصى وقت إجمالي (كل المحاولات مجتمعة) قبل الاستسلام والرفع لدالة الاستدعاء --
 # يحمي من انتظار عشرات الدقائق على نداء واحد (لوحظ فعليًا 21-37 دقيقة قبل هذا السقف).
-GROQ_MAX_WAIT_SECONDS = int(os.environ.get("GROQ_MAX_WAIT_SECONDS", "90"))
+GROQ_MAX_WAIT_SECONDS = int(os.environ.get("GROQ_MAX_WAIT_SECONDS", "120"))
+# تباعد استباقي بين نداءات Groq المتتالية -- نداء واحد فعلي بيستهلك ~91% من حصة
+# الدقيقة (~7300 من 8000 توكن)، فنداءان متتاليان بلا تباعد بيتصادموا كل مرة تقريبًا.
+GROQ_MIN_CALL_INTERVAL = float(os.environ.get("GROQ_MIN_CALL_INTERVAL", "20"))
+_last_call_ts = 0.0
 
 
 def _extract_retry_after(he: urllib.error.HTTPError, default: float) -> float:
@@ -106,12 +110,17 @@ def _groq(system: str, user: str, model: str | None = None) -> dict:
     429/503: نستنى بالظبط الوقت اللي Groq طلبه (لو متاح) طالما مازال جوه الميزانية.
     413: فشل حتمي (الحمولة أكبر من حد الموديل) -- رفع فوري بلا انتظار.
     غير كده (رد فاضي/JSON تالف): إعادة محاولة سريعة (3 ثواني) طالما جوه الميزانية."""
+    global _last_call_ts
+    since_last = time.monotonic() - _last_call_ts
+    if since_last < GROQ_MIN_CALL_INTERVAL:
+        time.sleep(GROQ_MIN_CALL_INTERVAL - since_last)
     m = model or GROQ_MODEL
     t0 = time.monotonic()
     last_err = None
     while True:
         try:
             txt = _groq_request(system, user, m)
+            _last_call_ts = time.monotonic()
             if not txt.strip():
                 raise RuntimeError("Groq: رد فاضي")
             return _parse_json_lenient(txt)
@@ -125,6 +134,7 @@ def _groq(system: str, user: str, model: str | None = None) -> dict:
             wait = 3.0
         elapsed = time.monotonic() - t0
         if elapsed + wait > GROQ_MAX_WAIT_SECONDS:
+            _last_call_ts = time.monotonic()
             raise last_err
         time.sleep(wait)
 

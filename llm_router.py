@@ -131,7 +131,15 @@ def llm(system: str, user: str, gemini_fn=None, gemini_kwargs: dict | None = Non
     try:
         return _groq(system, user, model=groq_model)
     except Exception as e:
-        print(f"[llm_router] Groq فشل ({e}) -- تجربة Gemini كاحتياطي", flush=True)
+        groq_err = e
+        # لو معروف إن رصيد Gemini مقفول فعليًا (GEMINI_FALLBACK_DISABLED=1) -- مفيش داعي
+        # نستنى دورة إعادة محاولات Gemini الكاملة (تصل لدقايق) على مفتاح هيفشل أكيد؛
+        # نرفع خطأ Groq فورًا بدل الانتظار بلا فايدة (لوحظ فعليًا 2026-09-17: 37 دقيقة
+        # انتظار على درس واحد بسبب ده تحديدًا).
+        if os.environ.get("GEMINI_FALLBACK_DISABLED") == "1":
+            print(f"[llm_router] Groq فشل ({groq_err}) -- Gemini معطّل (رصيده منتهي)، رفع الخطأ فورًا", flush=True)
+            raise groq_err
+        print(f"[llm_router] Groq فشل ({groq_err}) -- تجربة Gemini كاحتياطي", flush=True)
     if gemini_fn is None:
         raise RuntimeError("Groq فشل ومفيش دالة Gemini احتياطية متاحة")
     return gemini_fn(system, user, **(gemini_kwargs or {}))

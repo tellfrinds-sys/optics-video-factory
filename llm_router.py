@@ -1,13 +1,22 @@
 # -*- coding: utf-8 -*-
 """llm_router.py — طبقة توجيه موحّدة لكل نداءات النص (كتابة/مراجعة/اختيار بصري/إصلاح)،
 2026-09-17: بعد نفاد رصيد Gemini المدفوع مرارًا ("غارم")، Groq بقى المحرك الأساسي --
-مجاني حقيقي (بدون بطاقة ائتمان)، وحده استخدام يومي/دقيقي يتجدد تلقائيًا بدل محفظة بتخلص،
-فمستحيل تتكرر نفس أزمة "الرصيد خلص". الموديل الافتراضي groq/compound-mini: حصة توكن/دقيقة
-سخية جدًا (70K) تكفي عدة نداءات متتالية لكل درس (كتابة+تدقيق+مراجعة)، على عكس allam-2-7b
-(6K TPM بس -- جودة لهجة ممتازة لكن حصة ضيقة جدًا لعبء الإنتاج الفعلي) أو qwen/gpt-oss
-(8K TPM). العيب: موديل "compound" وكيلي (agentic) أحيانًا بيرجّع رد فاضي/مقطوع لأسباب
-داخلية (خطوات أدوات مخفية) -- اتعامل معاه بإعادة محاولة على فشل تحليل JSON برضه، مش بس
-أخطاء HTTP. Gemini فضل احتياطي ثانوي بس لو مفتاحه/رصيده اشتغلوا يومًا.
+مجاني حقيقي (بدون بطاقة ائتمان)، وحصته حد استخدام يتجدد تلقائيًا بدل محفظة بتخلص، فمستحيل
+تتكرر نفس أزمة "الرصيد خلص".
+
+اختيار الموديل (بالتجربة الفعلية، مش تخمين):
+- allam-2-7b (ALLaM/SDAIA): أفضل جودة لهجة مصرية، لكن حصته 6K توكن/دقيقة بس -- أصغر من
+  حجم نداء واحد فعلي (برومبت+رد) فبترفض الطلب من الأساس (413).
+- groq/compound / compound-mini: حصته المعلَنة سخية (70K TPM) لكنه موديل "وكيلي" بينادي
+  داخليًا على موديلات فرعية (لوحظ فعليًا: llama-3.3-70b و gpt-oss-120b) وبيرتطم بحصصهم
+  الصغيرة من جوه بشكل عشوائي غير متحكَّم فيه -- 429 متقطع لا يمكن الاعتماد عليه في
+  إنتاج تلقائي غير مراقَب. تم استبعاده لهذا السبب بعد اختبار حي مباشر.
+- qwen/qwen3.8-27b (المُعتمَد): موديل عادي (لا نداءات خفية)، حصته 8K TPM، وبعد تقليص
+  حجم برومبت دليل الأسلوب المحقون (_style_tail في agents.py) بقى نداء الكتابة الكامل
+  يستهلك ~7300 توكن -- بالظبط تحت السقف. جودة اللهجة عالية وطبيعية فعليًا (فُحصت مباشرة
+  على محتوى درس حقيقي قبل الاعتماد).
+
+Gemini فضل احتياطي ثانوي بس لو مفتاحه/رصيده اشتغلوا يومًا.
 
 الاستخدام: استبدل أي `_gemini(system, user, ...)` بـ `llm_router.llm(system, user,
 gemini_fn=_gemini, gemini_kwargs={...})` -- نفس عقد الإرجاع بالظبط (dict مُفكّك من JSON)،
@@ -22,8 +31,10 @@ import urllib.error
 import urllib.request
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "groq/compound-mini")
-GROQ_MAX_TOKENS = 8192  # أقصى سقف مسموح فعليًا لهذا الموديل (context_window)
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
+# سقف رد أقل من حصة التوكن/الدقيقة للموديلات العادية (8K) بعد خصم حجم البرومبت --
+# مقاس فعليًا: برومبت الكتابة الكامل ~4000 توكن، فسيب هامش أمان معقول للرد.
+GROQ_MAX_COMPLETION_TOKENS = int(os.environ.get("GROQ_MAX_COMPLETION_TOKENS", "4000"))
 
 
 def _groq_once(system: str, user: str, model: str) -> str:
@@ -34,7 +45,7 @@ def _groq_once(system: str, user: str, model: str) -> str:
         "model": model,
         "response_format": {"type": "json_object"},
         "temperature": 0.4,
-        "max_completion_tokens": GROQ_MAX_TOKENS,
+        "max_completion_tokens": GROQ_MAX_COMPLETION_TOKENS,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -81,20 +92,26 @@ def _parse_json_lenient(txt: str) -> dict:
 
 
 def _groq(system: str, user: str, model: str | None = None) -> dict:
-    """موديل compound-mini الوكيلي أحيانًا بيرجّع محتوى فاضي/مقطوع (خطوات أدوات داخلية
-    بتاكل الميزانية) -- إعادة محاولة قصيرة هنا تحل الغالبية العظمى من الحالات دون
-    اللجوء لـ Gemini الاحتياطي بلا داعٍ."""
     m = model or GROQ_MODEL
     last_err = None
-    for _attempt in range(6):
+    for _attempt in range(4):
         try:
             txt = _groq_once(system, user, m)
             if not txt.strip():
                 raise RuntimeError("Groq: رد فاضي")
             return _parse_json_lenient(txt)
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code == 413:
+                # الحمولة أكبر من حد التوكن/الدقيقة للموديل -- إعادة نفس الطلب هترجّع
+                # نفس الخطأ دايمًا، فمفيش داعي نستهلك محاولات.
+                raise
+            if _attempt < 3:
+                time.sleep(6)
+                continue
         except Exception as e:
             last_err = e
-            if _attempt < 5:
+            if _attempt < 3:
                 time.sleep(6)
                 continue
     raise last_err

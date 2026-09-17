@@ -120,9 +120,19 @@ def _drive_upload(src: Path, name: str) -> dict:
               "--drive-chunk-size", "16M"], timeout=900)
     if r.returncode != 0:
         return {"ok": False, "error": r.stderr[-300:]}
-    link = _run(["rclone", "link", f"{DRIVE_REMOTE}/{name}"], timeout=60).stdout.strip()
-    link = [ln for ln in link.splitlines() if ln.startswith("http")]
-    return {"ok": True, "name": name, "link": link[0] if link else ""}
+    # حماية (2026-09-17، لوحظ فعليًا: درس 100026): الرفع نفسه نجح دايمًا
+    # (copyto فوق نجح)، لكن طلب رابط المشاركة (rclone link) ممكن يتأخر/يتعلّق    # شبكيًا بشكل عابر وماكانش محمية ضدها، فكان خطأ timeout بيكسر الدرس كامل    # رغم إن الفيديو رفع بنجاح. نحاول مرتين، ولو فشل الاتنين، نرجّع نجاح    # بلا رابط (link فاضي) بدل ما نفشّل الدرس كاملًا.
+    link = ""
+    for _try in range(2):
+        try:
+            out = _run(["rclone", "link", f"{DRIVE_REMOTE}/{name}"], timeout=60).stdout.strip()
+            found = [ln for ln in out.splitlines() if ln.startswith("http")]
+            if found:
+                link = found[0]
+                break
+        except Exception as e:
+            print(f"[drive] rclone link فشل (محاولة {_try + 1}): {e}", flush=True)
+    return {"ok": True, "name": name, "link": link}
 
 
 def _supabase_upload(src: Path, name: str) -> dict:

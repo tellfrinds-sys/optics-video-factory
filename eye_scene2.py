@@ -100,6 +100,45 @@ def _f(path, size):
         _FCACHE[key] = ImageFont.truetype(path, size)
     return _FCACHE[key]
 
+_LATIN_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-_./+]*$")
+
+
+def _draw_mixed(d, x, y, text, ar_path, lat_path, size, fill, anchor="rm"):
+    """يرسم نص ممكن يحتوي على كلمات لاتينية مفردة (A، DBL، PDC...) وسط عربي --
+    الخط العربي (Noto Naskh) مالوش حروف لاتينية فبتظهر كصندوق فارغ لو اتجاهلت (لوحظ
+    فعليًا 2026-09-17 في عنوان مشهد وتسميات labels). بيرسم كل كلمة بالخط المناسب.
+    anchor[0]: 'r' (يمين، الكلمات من اليمين لليسار بترتيب النص -- تقريب RTL) أو
+    'l' (يسار، الكلمات من الشمال لليمين بنفس الترتيب) أو 'm' (وسط، معاملة كـ r).
+    anchor[1]: محاذاة رأسية عادية (m/t/...). يرجع العرض الكلي بالبكسل.
+    """
+    tokens = str(text or "").split()
+    if not tokens:
+        return 0
+    runs = []
+    for tok in tokens:
+        font = _f(lat_path, size) if _LATIN_TOKEN.match(tok) else _f(ar_path, size)
+        is_lat = _LATIN_TOKEN.match(tok) is not None
+        bbox = d.textbbox((0, 0), tok, font=font, anchor="lt",
+                          **({} if is_lat else {"language": "ar"}))
+        runs.append((tok, font, is_lat, bbox[2] - bbox[0]))
+    gap = size * 0.28
+    total_w = sum(w for *_r, w in runs) + gap * (len(runs) - 1)
+    va = anchor[1] if len(anchor) > 1 else "m"
+    if anchor[0] == "l":
+        cursor = x
+        for tok, font, is_lat, w in runs:
+            d.text((cursor, y), tok, font=font, fill=fill, anchor="l" + va,
+                   **({} if is_lat else {"language": "ar"}))
+            cursor += w + gap
+    else:
+        start_right = x if anchor[0] == "r" else x + total_w / 2
+        cursor = start_right
+        for tok, font, is_lat, w in runs:
+            d.text((cursor, y), tok, font=font, fill=fill, anchor="r" + va,
+                   **({} if is_lat else {"language": "ar"}))
+            cursor -= w + gap
+    return total_w
+
 
 def _pollinations_generate_image(prompt: str, cache_key: str) -> "Path | None":
     """يولّد صورة عبر Pollinations.ai — مجاني بالكامل، بلا مفتاح API وبلا فوترة
@@ -190,12 +229,25 @@ def _ar(d, xy, text, font, fill, anchor="ra"):
 
 
 def _pill(d, cx, cy, text, font, fg=INK, bg=(17, 30, 52, 235), pad=(20, 12)):
+    """font: كائن ImageFont (زي _f(AR_BOLD, 33)) -- بنستخرج المقاس منه ونرسم بخط
+    مختلط عربي/لاتيني عبر _draw_mixed (بعض المسمّيات بتحتوي حروف لاتينية مفردة زي
+    'القياس A' -- الخط العربي مالوش حروف لاتينية، لوحظ فعليًا 2026-09-17)."""
+    size = getattr(font, "size", 33)
     l, t, r, b = d.textbbox((0, 0), text, font=font, anchor="lt", language="ar")
-    tw, th = r - l, b - t
+    th = b - t
+    tokens = str(text or "").split() or [text]
+    gap = size * 0.28
+    widths = []
+    for tok in tokens:
+        is_lat = _LATIN_TOKEN.match(tok) is not None
+        fnt2 = _f(LAT_B, size) if is_lat else font
+        bb = d.textbbox((0, 0), tok, font=fnt2, anchor="lt", **({} if is_lat else {"language": "ar"}))
+        widths.append(bb[2] - bb[0])
+    tw = sum(widths) + gap * (len(widths) - 1)
     x0, y0 = cx - tw / 2 - pad[0], cy - th / 2 - pad[1]
     x1, y1 = cx + tw / 2 + pad[0], cy + th / 2 + pad[1]
     d.rounded_rectangle([x0, y0, x1, y1], radius=14, fill=bg, outline=GOLD, width=2)
-    d.text((cx, cy), text, font=font, fill=fg, anchor="mm", language="ar")
+    _draw_mixed(d, cx, cy, text, AR_BOLD, LAT_B, size, fg, anchor="mm")
     return (x0, y0, x1, y1)
 
 
@@ -212,11 +264,10 @@ def _header(img, heading, term_en=""):
     d.text((lx, 82), "بوابة البصريات", font=_f(AR_BOLD, 34), fill=GOLD, anchor="lm", language="ar")
     heading = _plain(heading)
     if heading:
-        d.text((W - 60, 70), heading, font=_f(AR_BOLD, 40), fill=INK, anchor="rm", language="ar")
-        tb = d.textbbox((W - 60, 70), heading, font=_f(AR_BOLD, 40), anchor="rm", language="ar")
-        d.line([(tb[0], tb[3] + 7), (W - 60, tb[3] + 7)], fill=GOLD, width=3)
+        hw = _draw_mixed(d, W - 60, 70, heading, AR_BOLD, LAT_B, 40, INK, anchor="rm")
+        d.line([(W - 60 - hw, 70 + 27), (W - 60, 70 + 27)], fill=GOLD, width=3)
         if term_en:
-            d.text((W - 60, tb[3] + 30), str(term_en), font=_f(LAT, 24), fill=GOLD, anchor="rm")
+            d.text((W - 60, 70 + 50), str(term_en), font=_f(LAT, 24), fill=GOLD, anchor="rm")
     d.line([(54, 150), (W - 54, 150)], fill=(255, 255, 255, 26), width=1)
 
 

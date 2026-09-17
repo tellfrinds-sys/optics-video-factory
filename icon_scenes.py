@@ -24,7 +24,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from eye_scene2 import _bg, _header, _footer, _f, _plain, GOLD, INK, DIM, W, H, AR_BOLD
+from eye_scene2 import _bg, _header, _footer, _f, _plain, _draw_mixed, GOLD, INK, DIM, W, H, AR_BOLD, LAT_B
 
 ICONS_ROOT = Path(__file__).parent / "assets" / "icons" / "healthicons" / "outline"
 
@@ -131,11 +131,12 @@ def render_icon_scene(scene: dict):
         ic = icon_img.resize((icon_px, icon_px), Image.LANCZOS)
         img.paste(ic, (cx - icon_px // 2, cy - icon_px // 2), ic)
         if label:
-            d.text((cx, cy + r + 36), _plain(label), font=label_font, fill=INK, anchor="mm", language="ar")
+            _draw_mixed(d, cx, cy + r + 36, _plain(label), AR_BOLD, LAT_B,
+                       label_font.size, INK, anchor="mm")
 
     caption = spec.get("caption")
     if caption:
-        d.text((W // 2, H - 130), _plain(caption), font=_f(AR_BOLD, 30), fill=DIM, anchor="mm", language="ar")
+        _draw_mixed(d, W // 2, H - 130, _plain(caption), AR_BOLD, LAT_B, 30, DIM, anchor="mm")
 
     _footer(img, scene.get("source_codes") or "")
     return img

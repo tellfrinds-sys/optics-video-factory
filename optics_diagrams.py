@@ -15,7 +15,7 @@ import math
 from PIL import Image, ImageDraw
 
 from eye_scene2 import (
-    _bg, _header, _footer, _f, _plain, _pill,
+    _bg, _header, _footer, _f, _plain, _pill, _draw_mixed,
     GOLD, INK, DIM, GLOW, W, H, AR_BOLD, AR_REG, LAT, LAT_B,
 )
 
@@ -203,12 +203,11 @@ def _labeled_slide(scene) -> Image.Image:
     d = ImageDraw.Draw(img, "RGBA")
     labels = scene.get("labels") or []
     if labels:
-        fnt = _f(AR_BOLD, 40)
         y0 = H // 2 - (len(labels) * 74) // 2
         for i, (name, _key) in enumerate(labels[:6]):
             cy = y0 + i * 74
             d.ellipse([W // 2 - 480, cy - 8, W // 2 - 464, cy + 8], fill=GOLD)
-            d.text((W // 2 - 440, cy), _plain(name), font=fnt, fill=INK, anchor="lm", language="ar")
+            _draw_mixed(d, W // 2 - 440, cy, _plain(name), AR_BOLD, LAT_B, 40, INK, anchor="lm")
     _footer(img, scene.get("source_codes") or "")
     return img
 

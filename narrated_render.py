@@ -483,60 +483,92 @@ def render_narrated(payload: dict[str, Any]) -> dict[str, Any]:
             and diagram not in ("cornea_layers", "gemini_custom")
 
         seg_dur = a_dur + SCENE_GAP
-        if reveal_ok:
-            n = len(labels)
-            parts = n + 1
-            durations = [seg_dur / parts] * parts
-            durations[-1] += seg_dur - sum(durations)  # يمتص فرق التقريب
-            frame_paths = []
-            for k in range(parts):
-                scene_k = dict(raw)
-                scene_k["labels"] = labels[:k]
-                fp = out_dir / f"S{sc:02d}_r{k}.png"
-                eye_scene2.render_scene(scene_k, size=(W, H)).save(fp)
-                frame_paths.append(fp)
-        else:
-            frame_paths = [out_dir / f"S{sc:02d}.png"]
-            eye_scene2.render_scene(raw, size=(W, H)).save(frame_paths[0])
-            durations = [seg_dur]
+        # مشهد أنيميشن HTML/CSS/JS حقيقي (2026-09-18، مسار دائم من الدرس 100029
+        # فصاعدًا) -- بيتسجل فيديو فعلي عبر Chromium آلي (html_animation.py) بدل
+        # كل خط رسم PNG/Ken-Burns العادي، وبيتظبط طوله بالظبط على seg_dur. بيسقط
+        # آمنًا لمسار الرسم الثابت العادي أدناه لو التسجيل فشل لأي سبب.
+        animation_done = False
+        anim_html_path = None
+        if diagram == "html_animation" and raw.get("animation_html_path"):
+            anim_html_path = Path(raw["animation_html_path"])
+        elif diagram == "frame_measurement_animation":
+            # أنيميشن مُولَّد ديناميكيًا (GSAP محلي) -- حجر الأساس لتحويل بقية
+            # مشاهد الجزء الأوسط لأنيميشن تدريجيًا (2026-09-18). التوقيت الداخلي
+            # بيتحسب من seg_dur الفعلي (مدة الصوت) مش جدول ثابت -- يحل مشكلة عدم
+            # التزامن اللي لوحظت فعليًا مع النسخة الأولى اليدوية.
+            import frame_measurement_animation as fma
+            spec = raw.get("diagram_spec") or {}
+            stage = spec.get("stage") or spec.get("measurement")
+            if stage:
+                anim_html_path = out_dir / f"S{sc:02d}_anim.html"
+                fma.build_html(stage, seg_dur, anim_html_path, values=spec.get("values"))
+        if anim_html_path is not None:
+            import html_animation
+            clip = out_dir / f"S{sc:02d}.mp4"
+            try:
+                html_animation.render_animation_scene(anim_html_path, seg_dur, clip)
+                clip_paths.append(clip)
+                print(f"[scene {sc}] أنيميشن HTML {seg_dur:.1f}s -> "
+                      f"{clip.stat().st_size // 1024}KB", flush=True)
+                animation_done = True
+            except Exception as e:
+                print(f"[scene {sc}] فشل تسجيل الأنيميشن ({e}) -- سقوط آمن لصورة ثابتة", flush=True)
 
-        # 3) مقطع الفيديو: مؤثّر Ken Burns (تقريب تدريجي متمركز) على كل جزء، مع ظهور
-        #    تدريجي للمسميات (جزء منفصل لكل مسمّى جديد) وfade خفيف عند بداية/نهاية المشهد فقط
-        fd = 0.4
-        sub_clips = []
-        for i, (fp, du) in enumerate(zip(frame_paths, durations)):
-            frames_n = max(2, round(du * 30))
-            maxzoom = 1.0 + min(0.05, 0.01 * du)
-            rate = (maxzoom - 1.0) / frames_n
-            zexpr = f"min(zoom+{rate:.6f},{maxzoom:.4f})"
-            vf = (f"zoompan=z='{zexpr}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
-                  f"d={frames_n}:s={W}x{H}:fps=30,setsar=1,fps=30")
-            if i == 0:
-                vf += f",fade=t=in:st=0:d={min(fd, du / 2):.2f}"
-            if i == len(frame_paths) - 1:
-                vf += f",fade=t=out:st={max(0.05, du - fd):.2f}:d={min(fd, du / 2):.2f}"
-            vf += ",format=yuv420p"
-            sub = out_dir / f"S{sc:02d}_c{i}.mp4"
-            # ملاحظة: لا نستخدم "-t" هنا مع loop+zoompan — الـdemuxer يبثّ إطارات إدخال متكررة
-            # بمعدّل افتراضي (25fps)، وzoompan يضاعف "d" لكل إطار إدخال يستقبله، فينفجر طول
-            # المقطع (خطأ ffmpeg شائع). الضبط الصحيح: تحديد عدد إطارات الإخراج مباشرة بـ "-frames:v".
-            _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-                  "-loop", "1", "-i", str(fp),
-                  "-vf", vf, "-r", "30", "-frames:v", str(frames_n),
-                  "-c:v", "libx264", "-tune", "stillimage",
-                  "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", str(sub)], timeout=120)
-            sub_clips.append(sub)
+        if not animation_done:
+            if reveal_ok:
+                n = len(labels)
+                parts = n + 1
+                durations = [seg_dur / parts] * parts
+                durations[-1] += seg_dur - sum(durations)  # يمتص فرق التقريب
+                frame_paths = []
+                for k in range(parts):
+                    scene_k = dict(raw)
+                    scene_k["labels"] = labels[:k]
+                    fp = out_dir / f"S{sc:02d}_r{k}.png"
+                    eye_scene2.render_scene(scene_k, size=(W, H)).save(fp)
+                    frame_paths.append(fp)
+            else:
+                frame_paths = [out_dir / f"S{sc:02d}.png"]
+                eye_scene2.render_scene(raw, size=(W, H)).save(frame_paths[0])
+                durations = [seg_dur]
 
-        clip = out_dir / f"S{sc:02d}.mp4"
-        if len(sub_clips) == 1:
-            sub_clips[0].rename(clip)
-        else:
-            sub_list = out_dir / f"S{sc:02d}_parts.txt"
-            sub_list.write_text("\n".join(f"file '{p.resolve()}'" for p in sub_clips), encoding="utf-8")
-            _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
-                  "-i", str(sub_list), "-c", "copy", str(clip)], timeout=120)
-        clip_paths.append(clip)
-        print(f"[scene {sc}] clip {seg_dur:.1f}s ({len(sub_clips)} جزء) -> {clip.stat().st_size//1024}KB", flush=True)
+            # 3) مقطع الفيديو: مؤثّر Ken Burns (تقريب تدريجي متمركز) على كل جزء، مع ظهور
+            #    تدريجي للمسميات (جزء منفصل لكل مسمّى جديد) وfade خفيف عند بداية/نهاية المشهد فقط
+            fd = 0.4
+            sub_clips = []
+            for i, (fp, du) in enumerate(zip(frame_paths, durations)):
+                frames_n = max(2, round(du * 30))
+                maxzoom = 1.0 + min(0.05, 0.01 * du)
+                rate = (maxzoom - 1.0) / frames_n
+                zexpr = f"min(zoom+{rate:.6f},{maxzoom:.4f})"
+                vf = (f"zoompan=z='{zexpr}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+                      f"d={frames_n}:s={W}x{H}:fps=30,setsar=1,fps=30")
+                if i == 0:
+                    vf += f",fade=t=in:st=0:d={min(fd, du / 2):.2f}"
+                if i == len(frame_paths) - 1:
+                    vf += f",fade=t=out:st={max(0.05, du - fd):.2f}:d={min(fd, du / 2):.2f}"
+                vf += ",format=yuv420p"
+                sub = out_dir / f"S{sc:02d}_c{i}.mp4"
+                # ملاحظة: لا نستخدم "-t" هنا مع loop+zoompan — الـdemuxer يبثّ إطارات إدخال متكررة
+                # بمعدّل افتراضي (25fps)، وzoompan يضاعف "d" لكل إطار إدخال يستقبله، فينفجر طول
+                # المقطع (خطأ ffmpeg شائع). الضبط الصحيح: تحديد عدد إطارات الإخراج مباشرة بـ "-frames:v".
+                _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                      "-loop", "1", "-i", str(fp),
+                      "-vf", vf, "-r", "30", "-frames:v", str(frames_n),
+                      "-c:v", "libx264", "-tune", "stillimage",
+                      "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", str(sub)], timeout=120)
+                sub_clips.append(sub)
+
+            clip = out_dir / f"S{sc:02d}.mp4"
+            if len(sub_clips) == 1:
+                sub_clips[0].rename(clip)
+            else:
+                sub_list = out_dir / f"S{sc:02d}_parts.txt"
+                sub_list.write_text("\n".join(f"file '{p.resolve()}'" for p in sub_clips), encoding="utf-8")
+                _run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                      "-i", str(sub_list), "-c", "copy", str(clip)], timeout=120)
+            clip_paths.append(clip)
+            print(f"[scene {sc}] clip {seg_dur:.1f}s ({len(sub_clips)} جزء) -> {clip.stat().st_size//1024}KB", flush=True)
 
         # 4) ترجمة المشهد — توقيت فعلي إن توفّر، وإلا توزيع نسبي
         if word_times:

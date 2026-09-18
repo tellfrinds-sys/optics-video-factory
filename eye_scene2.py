@@ -453,25 +453,44 @@ def render_scene(scene: dict, size=(W, H)) -> Image.Image:
     # بشعار العلامة (زي مشهد الختام) بدل رسم تشريحي مُقحَم على موضوع مش دايمًا مناسب له.
     if sc == 1 or scene.get("kind") == "title":
         d = ImageDraw.Draw(img, "RGBA")
-        try:
-            logo = Image.open(LOGO_PNG).convert("RGBA")
-            lh = 300
-            logo = logo.resize((int(logo.width * lh / logo.height), lh), Image.LANCZOS)
-            img.paste(logo, ((W - logo.width) // 2, 150), logo)
-        except Exception:
-            pass
+        title_image = scene.get("title_image_path")  # صورة مخصّصة لدرس بعينه (2026-09-18) -- تتقدّم على الشعار الافتراضي
+        if title_image and Path(title_image).exists():
+            try:
+                ci = Image.open(title_image).convert("RGBA")
+                # تكبير الصورة لتقارب الشاشة كاملة (2026-09-18، ملاحظة بشرية: كانت
+                # صغيرة جدًا) -- عرض شبه كامل وارتفاع سخي، مع سيب مساحة للعنوان تحتها بس.
+                box_w, box_h = 1780, 700
+                ci.thumbnail((box_w, box_h), Image.LANCZOS)
+                cx0 = (W - ci.width) // 2
+                cy0 = 50 + (box_h - ci.height) // 2
+                pad = 16
+                d.rounded_rectangle([cx0 - pad, cy0 - pad, cx0 + ci.width + pad, cy0 + ci.height + pad],
+                                     radius=18, fill=(255, 255, 255, 235), outline=GOLD, width=3)
+                img.paste(ci, (cx0, cy0), ci)
+                title_y1, title_y2, line_y = 870, 932, 964
+            except Exception:
+                title_image = None
+        if not title_image:
+            try:
+                logo = Image.open(LOGO_PNG).convert("RGBA")
+                lh = 300
+                logo = logo.resize((int(logo.width * lh / logo.height), lh), Image.LANCZOS)
+                img.paste(logo, ((W - logo.width) // 2, 150), logo)
+            except Exception:
+                pass
+            title_y1, title_y2, line_y = 560, 648, 700
         words = _plain(heading).split()
         if len(words) >= 3:
             cut = (len(words) + 1) // 2
             l1, l2 = " ".join(words[:cut]), " ".join(words[cut:])
         else:
             l1, l2 = heading, ""
-        d.text((W / 2, 560), l1, font=_f(AR_BOLD, 70), fill=INK, anchor="mm", language="ar")
+        d.text((W / 2, title_y1), l1, font=_f(AR_BOLD, 70), fill=INK, anchor="mm", language="ar")
         if l2:
-            d.text((W / 2, 648), l2, font=_f(AR_BOLD, 70), fill=GOLD, anchor="mm", language="ar")
-        d.line([(W / 2 - 420, 700), (W / 2 + 420, 700)], fill=GOLD, width=3)
+            d.text((W / 2, title_y2), l2, font=_f(AR_BOLD, 70), fill=GOLD, anchor="mm", language="ar")
+        d.line([(W / 2 - 420, line_y), (W / 2 + 420, line_y)], fill=GOLD, width=3)
         for i, ln in enumerate(scene.get("subtitle_lines") or []):
-            d.text((W / 2, 750 + i * 52), ln, font=_f(AR_REG, 32), fill=DIM, anchor="mm", language="ar")
+            d.text((W / 2, line_y + 50 + i * 52), ln, font=_f(AR_REG, 32), fill=DIM, anchor="mm", language="ar")
         _footer(img, code)
         return img
 

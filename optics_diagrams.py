@@ -212,6 +212,41 @@ def _labeled_slide(scene) -> Image.Image:
     return img
 
 
+def _frame_ruler_diagram(scene) -> Image.Image:
+    """مسطرة قياس إطار برمجية بالكامل (بلا API) -- بديل حتمي عن توليد صورة
+    بالذكاء الاصطناعي لأداة نادرة الموضوع طلّعت نتائج غير مطابقة فعليًا (صورة
+    نظارة شبحية بدل مسطرة، لوحظ 2026-09-18 في درس 100029)."""
+    img = _bg()
+    _header(img, scene.get("heading") or "", scene.get("term_en") or "")
+    d = ImageDraw.Draw(img, "RGBA")
+    rx0, rx1 = 260, W - 260
+    ry0, ry1 = 460, 560
+    d.rounded_rectangle([rx0, ry0, rx1, ry1], radius=14, fill=(235, 240, 246, 255),
+                         outline=GOLD, width=3)
+    mm_total = 80
+    px_per_mm = (rx1 - rx0 - 40) / mm_total
+    base_x = rx0 + 20
+    for mm in range(0, mm_total + 1, 1):
+        x = base_x + mm * px_per_mm
+        if mm % 10 == 0:
+            d.line([(x, ry0 + 10), (x, ry0 + 55)], fill=(20, 34, 58, 255), width=3)
+            d.text((x, ry0 + 65), str(mm), font=_f(LAT_B, 22), fill=(20, 34, 58, 255), anchor="mm")
+        elif mm % 5 == 0:
+            d.line([(x, ry0 + 10), (x, ry0 + 42)], fill=(60, 74, 98, 255), width=2)
+        else:
+            d.line([(x, ry0 + 10), (x, ry0 + 30)], fill=(120, 134, 158, 255), width=1)
+    d.text((W / 2, ry1 + 40), "mm", font=_f(LAT, 26), fill=DIM, anchor="mm")
+    labels = scene.get("labels") or []
+    if labels:
+        y0 = ry1 + 110
+        for i, (name, _key) in enumerate(labels[:3]):
+            cy = y0 + i * 70
+            d.ellipse([W // 2 - 380, cy - 8, W // 2 - 364, cy + 8], fill=GOLD)
+            _draw_mixed(d, W // 2 - 340, cy, _plain(name), AR_BOLD, LAT_B, 34, INK, anchor="lm")
+    _footer(img, scene.get("source_codes") or "")
+    return img
+
+
 _DISPATCH = {
     "lens_ray_diagram": _lens_ray_diagram,
     "prism_diagram": _prism_diagram,
@@ -219,6 +254,7 @@ _DISPATCH = {
     "frame_measurement_diagram": _frame_measurement_diagram,
     "pd_measurement_diagram": _pd_measurement_diagram,
     "labeled_slide": _labeled_slide,
+    "frame_ruler_diagram": _frame_ruler_diagram,
 }
 
 

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أنيميشن تلقائي: قياسات الإطار</title>
+    <style>
+        :root {
+            --color-a: #007bff;
+            --color-b: #28a745;
+            --color-dbl: #17a2b8;
+            --color-e: #9c27b0;
+            --bg-color: transparent;
+            --text-main: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fbfe;
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .scene {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        /* SVG Styles */
+        .svg-container {
+            width: 100%;
+            height: 450px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        svg {
+            width: 90%;
+            height: auto;
+            max-height: 400px;
+            overflow: visible;
+        }
+
+        .frame-path {
+            fill: none;
+            stroke: #1a4a76;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0;
+            animation: fadeInFrame 1s ease forwards;
+        }
+
+        .lens-path {
+            fill: #e3f2fd;
+            opacity: 0;
+            stroke: #bdc3c7;
+            stroke-width: 2;
+            animation: fadeInLens 1.5s ease forwards 0.5s;
+        }
+
+        /* Dimension Lines & Labels */
+        .dim-arrow {
+            stroke-width: 4;
+            fill: none;
+        }
+
+        .dim-text {
+            font-size: 28px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+        }
+
+        /* Animation Sequence Classes */
+        .dim-group {
+            opacity: 0;
+            clip-path: polygon(0 0, 0 0, 0 100%, 0% 100%);
+            transition: clip-path 1.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+        }
+
+        .dim-group.show {
+            opacity: 1;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        }
+
+        .dim-group.show .dim-text {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.8s;
+        }
+
+        /* Equation Section */
+        .equation-box {
+            background-color: #ffffff;
+            border: 3px dashed #1a4a76;
+            border-radius: 20px;
+            padding: 30px 60px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .equation-box.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .calc-header {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1a4a76;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-equation {
+            font-size: 40px;
+            color: #333;
+            direction: ltr;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .highlight {
+            color: #d32f2f;
+            font-size: 50px;
+        }
+
+        /* Keyframes */
+        @keyframes fadeInFrame {
+            to { opacity: 1; }
+        }
+        @keyframes fadeInLens {
+            to { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scene">
+    <!-- SVG Graphic Area -->
+    <div class="svg-container">
+        <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- إطار دائري / بيضاوي بزوايا ناعمة -->
+            <!-- العدسة اليسرى -->
+            <rect x="105" y="78" width="235" height="164" rx="70" ry="70" class="lens-path" />
+            <rect x="105" y="78" width="235" height="164" rx="70" ry="70" class="frame-path" />
+
+            <!-- العدسة اليمنى -->
+            <rect x="460" y="78" width="235" height="164" rx="70" ry="70" class="lens-path" />
+            <rect x="460" y="78" width="235" height="164" rx="70" ry="70" class="frame-path" />
+
+            <!-- الجسر (Bridge) -->
+            <path class="frame-path" d="M 340 130 Q 400 110 460 130" />
+            <path class="frame-path" d="M 340 160 Q 400 140 460 160" />
+
+            <!-- أذرع النظارة (Temples) -->
+            <path class="frame-path" d="M 105 160 L 40 150" />
+            <path class="frame-path" d="M 695 160 L 760 150" />
+
+            <!-- علامات الأسهم للقياسات -->
+            <defs>
+                <marker id="arrowA" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#007bff" /></marker>
+                <marker id="arrowA-rev" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#007bff" /></marker>
+
+                <marker id="arrowB" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#28a745" /></marker>
+                <marker id="arrowB-rev" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#28a745" /></marker>
+
+                <marker id="arrowDBL" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#17a2b8" /></marker>
+                <marker id="arrowDBL-rev" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#17a2b8" /></marker>
+
+                <marker id="arrowE" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#9c27b0" /></marker>
+                <marker id="arrowE-rev" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M9,0 L9,6 L0,3 z" fill="#9c27b0" /></marker>
+            </defs>
+
+            <!-- القياس A -->
+            <g id="dimA" class="dim-group">
+                <line x1="105" y1="160" x2="340" y2="160" class="dim-arrow" stroke="#007bff" marker-end="url(#arrowA)" marker-start="url(#arrowA-rev)"/>
+                <text x="200" y="145" class="dim-text" fill="#007bff">A = 52</text>
+            </g>
+
+            <!-- القياس B -->
+            <g id="dimB" class="dim-group">
+                <line x1="222.5" y1="78" x2="222.5" y2="242" class="dim-arrow" stroke="#28a745" marker-end="url(#arrowB)" marker-start="url(#arrowB-rev)"/>
+                <text x="235" y="165" class="dim-text" fill="#28a745">B</text>
+            </g>
+
+            <!-- القياس DBL -->
+            <g id="dimDBL" class="dim-group">
+                <line x1="340" y1="145" x2="460" y2="145" class="dim-arrow" stroke="#17a2b8" marker-end="url(#arrowDBL)" marker-start="url(#arrowDBL-rev)"/>
+                <text x="355" y="130" class="dim-text" fill="#17a2b8">DBL = 16</text>
+                <line x1="340" y1="120" x2="340" y2="155" stroke="#17a2b8" stroke-width="2" stroke-dasharray="4 2"/>
+                <line x1="460" y1="120" x2="460" y2="155" stroke="#17a2b8" stroke-width="2" stroke-dasharray="4 2"/>
+            </g>
+
+            <!-- القياس E -->
+            <g id="dimE" class="dim-group">
+                <line x1="125" y1="220" x2="320" y2="95" class="dim-arrow" stroke="#9c27b0" marker-end="url(#arrowE)" marker-start="url(#arrowE-rev)"/>
+                <text x="180" y="145" class="dim-text" fill="#9c27b0">E</text>
+            </g>
+        </svg>
+    </div>
+
+    <!-- صندوق المعادلة -->
+    <div id="eqBox" class="equation-box">
+        <div class="calc-header">المركز الهندسي للإطار (Geometrical Center)</div>
+        <div class="result-equation">
+            GC = <span style="color: var(--color-a);">A</span> + <span style="color: var(--color-dbl);">DBL</span><br>
+            GC = <span style="color: var(--color-a);">52</span> + <span style="color: var(--color-dbl);">16</span> = <span class="highlight">68 mm</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // الجدولة الزمنية لظهور العناصر (Timeline)
+    window.onload = () => {
+        const timeline = [
+            { id: 'dimA', delay: 2000 },
+            { id: 'dimB', delay: 4500 },
+            { id: 'dimDBL', delay: 7000 },
+            { id: 'dimE', delay: 9500 },
+            { id: 'eqBox', delay: 12500 }
+        ];
+
+        timeline.forEach(item => {
+            setTimeout(() => {
+                document.getElementById(item.id).classList.add('show');
+            }, item.delay);
+        });
+    };
+</script>
+
+</body>
+</html>
